@@ -116,7 +116,8 @@ jobs:
             These builds are unsigned unless signing secrets are configured, so
             the first launch shows a warning: on macOS right-click the app and
             choose **Open**; on Windows click **More info → Run anyway**.
-          # Draft so you can check the binaries before anyone can download them.
-          releaseDraft: true
+          # Published, not draft: a draft release's assets 404 for anyone who is
+          # not the repo owner, which would break the download link on the site.
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.target != '' && format('--target {0}', matrix.target) || '' }}
