@@ -1,0 +1,528 @@
+/* ---------------------------------------------------------------------------
+   Theme tokens. Every colour in the app resolves through these, so adding a
+   theme means adding one block rather than hunting through components.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --blank-font: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --blank-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --blank-font-size: 18px;
+  --blank-line-height: 1.7;
+  --blank-measure: 700px;
+  --blank-scroll-padding: 45vh;
+
+  --blank-ui-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  --blank-ui-size: 13px;
+
+  --blank-sidebar-width: 260px;
+  --blank-bar-height: 44px;
+}
+
+:root[data-theme='light'] {
+  --blank-bg: #ffffff;
+  --blank-fg: #1a1a1a;
+  --blank-muted: #6b6b6b;
+  --blank-faint: #b8b8b8;
+  --blank-dimmed: #c9c9c9;
+  --blank-caret: #1a1a1a;
+  --blank-accent: #2b6cb0;
+  --blank-selection: #d6e4f7;
+  --blank-code-bg: #f2f2f2;
+  --blank-rule: #ebebeb;
+  --blank-panel: #fafafa;
+  --blank-panel-hover: #f0f0f0;
+  --blank-panel-active: #e9e9e9;
+}
+
+:root[data-theme='dark'] {
+  --blank-bg: #16161a;
+  --blank-fg: #e6e6e6;
+  --blank-muted: #8b8b93;
+  --blank-faint: #55555e;
+  --blank-dimmed: #47474f;
+  --blank-caret: #e6e6e6;
+  --blank-accent: #7aa7d9;
+  --blank-selection: #2f3d52;
+  --blank-code-bg: #23232a;
+  --blank-rule: #26262c;
+  --blank-panel: #1b1b20;
+  --blank-panel-hover: #23232a;
+  --blank-panel-active: #2a2a32;
+}
+
+:root[data-theme='sepia'] {
+  --blank-bg: #f5efe2;
+  --blank-fg: #3a3128;
+  --blank-muted: #7d7160;
+  --blank-faint: #b9ab95;
+  --blank-dimmed: #c8bca8;
+  --blank-caret: #3a3128;
+  --blank-accent: #9a5b2c;
+  --blank-selection: #e6d8be;
+  --blank-code-bg: #ece3d1;
+  --blank-rule: #e2d8c4;
+  --blank-panel: #f0e9da;
+  --blank-panel-hover: #e9e0ce;
+  --blank-panel-active: #e2d8c4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--blank-bg);
+  color: var(--blank-fg);
+  font-family: var(--blank-ui-font);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+   Layout: canvas fills the window, sidebar sits beside it, bar pins to bottom.
+   --------------------------------------------------------------------------- */
+
+.app {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.app__main {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 64px;
+}
+
+.canvas .cm-editor {
+  height: 100%;
+}
+
+/* Centre the writing column without centring the text inside it. */
+.canvas .cm-scroller {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/*
+ * Typewriter scrolling needs slack at both ends, or the first and last lines
+ * physically cannot reach the anchor and the effect breaks exactly where it is
+ * most visible. This lives here rather than in the CodeMirror theme because
+ * the theme's own `.cm-content { padding: 0 }` shorthand resets it.
+ */
+.canvas .cm-editor.cm-blank-typewriter .cm-content {
+  padding-top: var(--blank-scroll-padding);
+  padding-bottom: var(--blank-scroll-padding);
+}
+
+/* ---------------------------------------------------------------------------
+   Bottom bar
+   --------------------------------------------------------------------------- */
+
+.bar {
+  flex: 0 0 auto;
+  height: var(--blank-bar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  font-size: var(--blank-ui-size);
+  color: var(--blank-faint);
+  user-select: none;
+  gap: 16px;
+  /* Recede until the pointer is nearby, so the page stays blank. */
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+.bar:hover,
+.bar:focus-within {
+  opacity: 1;
+}
+
+.bar__group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.bar__fonts,
+.bar__optional {
+  display: contents;
+}
+
+/*
+ * The bar must never let its two halves collide. Below these widths the least
+ * important controls drop out rather than overlapping — all of them remain
+ * reachable from the command palette.
+ */
+@media (max-width: 1250px) {
+  .bar__optional {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .bar__fonts {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .bar__stats {
+    display: none;
+  }
+}
+
+.bar__sep {
+  color: var(--blank-faint);
+  opacity: 0.6;
+  padding: 0 6px;
+}
+
+.bar__btn {
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--blank-faint);
+  white-space: nowrap;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.bar__btn:hover {
+  color: var(--blank-fg);
+  background: var(--blank-panel-hover);
+}
+
+.bar__btn[aria-pressed='true'],
+.bar__btn.is-active {
+  color: var(--blank-fg);
+}
+
+.bar__btn:focus-visible {
+  outline: 2px solid var(--blank-accent);
+  outline-offset: 1px;
+}
+
+.bar__btn--running {
+  color: var(--blank-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar__stats {
+  font-variant-numeric: tabular-nums;
+  color: var(--blank-faint);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   History sidebar
+   --------------------------------------------------------------------------- */
+
+.sidebar {
+  flex: 0 0 var(--blank-sidebar-width);
+  width: var(--blank-sidebar-width);
+  border-left: 1px solid var(--blank-rule);
+  background: var(--blank-panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar__head {
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--blank-rule);
+}
+
+.sidebar__title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--blank-fg);
+  font-weight: 500;
+}
+
+.sidebar__path {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--blank-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__search {
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--blank-fg);
+  background: var(--blank-bg);
+  border: 1px solid var(--blank-rule);
+  border-radius: 5px;
+}
+
+.sidebar__search::placeholder {
+  color: var(--blank-faint);
+}
+
+.sidebar__search:focus {
+  outline: none;
+  border-color: var(--blank-accent);
+}
+
+.sidebar__list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.sidebar__empty {
+  padding: 24px 14px;
+  font-size: 12px;
+  color: var(--blank-faint);
+  line-height: 1.6;
+}
+
+.daygroup {
+  padding: 10px 14px 4px;
+  font-size: 12px;
+  color: var(--blank-muted);
+  border-bottom: 1px solid var(--blank-rule);
+  background: var(--blank-panel);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.entry {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--blank-rule);
+  transition: background-color 120ms ease;
+}
+
+.entry:hover {
+  background: var(--blank-panel-hover);
+}
+
+.entry.is-current {
+  background: var(--blank-panel-active);
+}
+
+.entry__title {
+  font-size: 13px;
+  color: var(--blank-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.entry__flag {
+  color: var(--blank-muted);
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.entry__meta {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--blank-faint);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.entry__snippet {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--blank-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.entry__snippet mark {
+  background: var(--blank-selection);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.entry__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.tag {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--blank-panel-active);
+  color: var(--blank-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Overlays: command palette, dialogs
+   --------------------------------------------------------------------------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--blank-bg) 55%, transparent);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 14vh;
+  z-index: 50;
+}
+
+.panel {
+  width: min(560px, 92vw);
+  max-height: 68vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--blank-panel);
+  border: 1px solid var(--blank-rule);
+  border-radius: 10px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.panel__input {
+  width: 100%;
+  padding: 14px 16px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--blank-fg);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--blank-rule);
+}
+
+.panel__input:focus {
+  outline: none;
+}
+
+.panel__list {
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.panel__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--blank-fg);
+  text-align: left;
+}
+
+.panel__item.is-active {
+  background: var(--blank-panel-active);
+}
+
+.panel__hint {
+  font-size: 11px;
+  color: var(--blank-faint);
+  white-space: nowrap;
+}
+
+.panel__section {
+  padding: 10px 12px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--blank-faint);
+}
+
+.panel__empty {
+  padding: 18px 16px;
+  font-size: 13px;
+  color: var(--blank-faint);
+}
+
+/* A toast for confirmations that don't deserve a dialog. */
+.toast {
+  position: fixed;
+  bottom: calc(var(--blank-bar-height) + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--blank-fg);
+  color: var(--blank-bg);
+  font-size: 12px;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 20;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.14);
+  }
+  .bar {
+    font-size: 12px;
+    padding: 0 12px;
+  }
+}
+
+@media print {
+  .bar,
+  .sidebar,
+  .overlay,
+  .toast {
+    display: none !important;
+  }
+}
