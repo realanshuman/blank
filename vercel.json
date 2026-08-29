@@ -5,11 +5,7 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
-    {
-      "//": "Two real pages: the marketing site at / and the app at /app. A catch-all to index.html would swallow /app, so each is routed explicitly.",
-      "source": "/app",
-      "destination": "/app.html"
-    },
+    { "source": "/app", "destination": "/app.html" },
     { "source": "/app/(.*)", "destination": "/app.html" }
   ],
   "headers": [
