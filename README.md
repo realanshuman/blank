@@ -228,10 +228,17 @@ The whole app is a static site — there is no server, no database and no API.
 Vercel serves it as-is, so you get the real working app at a URL, not just a
 marketing page.
 
+The deploy serves two pages:
+
+| URL | Page |
+|---|---|
+| `/` | the landing page — pure HTML and CSS, no JavaScript at all |
+| `/app` | the writing app |
+
 **From the dashboard:** New Project → import `realanshuman/blank` → set the
 branch to `claude/note-taking-app-local-jteptj` → Deploy. `vercel.json` already
-pins the framework, build command, output directory and cache headers, so there
-is nothing to configure.
+pins the framework, build command, output directory, routing and cache headers,
+so there is nothing to configure.
 
 **From the CLI:**
 

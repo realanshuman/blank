@@ -22,5 +22,12 @@ export default defineConfig({
   build: {
     target: ['es2021', 'chrome100', 'safari14'],
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      // Two pages: the marketing site at / and the writing app at /app.
+      input: {
+        landing: fileURLToPath(new URL('./index.html', import.meta.url)),
+        app: fileURLToPath(new URL('./app.html', import.meta.url)),
+      },
+    },
   },
 })

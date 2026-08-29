@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test'
  * carries entries between tests and assertions about "the only entry" break.
  */
 async function freshApp(page: Page) {
-  await page.goto('/')
+  await page.goto('/app')
   await page.evaluate(async () => {
     localStorage.clear()
     await new Promise<void>((resolve) => {
