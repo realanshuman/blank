@@ -46,6 +46,11 @@ jobs:
     runs-on: ${{ matrix.platform }}
     name: ${{ matrix.label }}
 
+    env:
+      # Signing is enabled only when a certificate actually exists. See the
+      # "Enable Apple code signing" step for why this matters.
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -91,18 +96,30 @@ jobs:
           npm run typecheck
           npm run test
 
+      # Tauri reads APPLE_CERTIFICATE with std::env::var_os, which returns
+      # Some("") for a variable that is DEFINED BUT EMPTY — as an unset GitHub
+      # secret is. It then tries to import a blank certificate and the bundle
+      # step dies. So the variables must not exist at all unless signing is
+      # genuinely configured, which is why they are written here rather than
+      # passed unconditionally in the build step's env block.
+      - name: Enable Apple code signing
+        if: matrix.platform == 'macos-14' && env.HAS_APPLE_CERT == 'true'
+        run: |
+          {
+            echo "APPLE_CERTIFICATE<<__EOF__"
+            echo "${{ secrets.APPLE_CERTIFICATE }}"
+            echo "__EOF__"
+            echo "APPLE_CERTIFICATE_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+            echo "APPLE_SIGNING_IDENTITY=${{ secrets.APPLE_SIGNING_IDENTITY }}"
+            echo "APPLE_ID=${{ secrets.APPLE_ID }}"
+            echo "APPLE_PASSWORD=${{ secrets.APPLE_PASSWORD }}"
+            echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
+          } >> "$GITHUB_ENV"
+
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Apple signing and notarisation. All optional: with none of these
-          # set the build still succeeds and produces an unsigned app.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
           releaseName: 'Blank __VERSION__'

@@ -211,8 +211,7 @@ push rather than at release time.
 
 Builds work unsigned — users get a one-time warning (macOS: right-click →
 **Open**; Windows: **More info → Run anyway**). To remove that warning, add
-these under Settings → Secrets and variables → Actions. The workflow picks up
-whichever are present and ignores the rest:
+these under Settings → Secrets and variables → Actions:
 
 | Secret | For |
 |---|---|
@@ -223,6 +222,14 @@ whichever are present and ignores the rest:
 
 Apple signing needs a paid Developer account ($99/yr). Only worth it when
 distributing to other people.
+
+The workflow only turns signing on when `APPLE_CERTIFICATE` is actually set, and
+that check has to happen *before* the build rather than by passing the secrets
+through unconditionally. Tauri reads the variable with `std::env::var_os`, which
+returns `Some("")` for a variable that is defined but empty — exactly what an
+unset GitHub secret expands to — so it would try to import a blank certificate
+and fail the macOS bundle step. The variables must not exist at all when there
+is nothing to sign with.
 
 ## Deploying to Vercel
 
