@@ -43,10 +43,16 @@ test.describe('landing page', () => {
     }
   })
 
-  test('warns about the unsigned first launch', async ({ page }) => {
+  test('explains how to get past the first-launch block', async ({ page }) => {
     await page.goto('/')
-    // Without this note the first launch looks like the app is broken.
-    await expect(page.locator('.notice')).toContainText('right-click')
+    const notice = page.locator('.notice')
+    // Without this the first launch looks like the app is broken. It must name
+    // the current route: Apple removed right-click -> Open in macOS 15.
+    await expect(notice).toContainText('Privacy')
+    await expect(notice).toContainText('Open Anyway')
+    await expect(notice, 'must not resurrect the obsolete advice').not.toContainText(
+      'right-click',
+    )
   })
 
   test('the primary call to action opens the app', async ({ page }) => {

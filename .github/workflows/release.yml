@@ -131,8 +131,14 @@ jobs:
             - **Linux** — `.AppImage` or `.deb`.
 
             These builds are unsigned unless signing secrets are configured, so
-            the first launch shows a warning: on macOS right-click the app and
-            choose **Open**; on Windows click **More info → Run anyway**.
+            the first launch is blocked. This is expected.
+
+            **macOS** — click **Done** (not "Move to Bin"), then open
+            **System Settings → Privacy & Security**, scroll to Security and click
+            **Open Anyway** next to Blank. Once only. Note the older
+            right-click → Open trick no longer works on macOS 15 and later.
+
+            **Windows** — click **More info → Run anyway**.
           # Published, not draft: a draft release's assets 404 for anyone who is
           # not the repo owner, which would break the download link on the site.
           releaseDraft: false

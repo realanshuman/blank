@@ -158,9 +158,17 @@ rustup target add x86_64-apple-darwin aarch64-apple-darwin
 npm run tauri:build -- --target universal-apple-darwin
 ```
 
-Unsigned builds are fine for your own use — macOS will warn on first launch, and
-**right-click → Open** gets past it. Signing needs a paid Apple Developer
-account and is only worth it when distributing to other people.
+Unsigned builds are fine for your own use. macOS blocks the first launch with
+"Apple could not verify…"; click **Done**, then go to **System Settings →
+Privacy & Security**, scroll to Security, and click **Open Anyway**. Once only.
+
+The older right-click → Open trick no longer works: Apple removed that bypass in
+macOS 15 (Sequoia), which is why the dialog there offers only Done and Move to
+Bin. From a terminal the equivalent is
+`xattr -dr com.apple.quarantine /Applications/Blank.app`.
+
+Signing needs a paid Apple Developer account and is only worth it when
+distributing to other people.
 
 ### What changes on the Mac
 
@@ -209,9 +217,9 @@ push rather than at release time.
 
 ### Code signing (optional)
 
-Builds work unsigned — users get a one-time warning (macOS: right-click →
-**Open**; Windows: **More info → Run anyway**). To remove that warning, add
-these under Settings → Secrets and variables → Actions:
+Builds work unsigned — users get a one-time block (macOS: **System Settings →
+Privacy & Security → Open Anyway**; Windows: **More info → Run anyway**). To
+remove it, add these under Settings → Secrets and variables → Actions:
 
 | Secret | For |
 |---|---|
