@@ -1,0 +1,60 @@
+name: Rust
+
+# Only runs when the native shell actually changes — the web layer has its own
+# workflow and Rust builds are slow.
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/rust.yml'
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/rust.yml'
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libsoup-3.0-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf \
+            build-essential \
+            pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # tauri::generate_context! reads frontendDist, so it needs dist/ to exist.
+      # Building the real frontend is the honest way to satisfy that.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:only
+
+      - name: Format
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Check
+        run: cargo check --manifest-path src-tauri/Cargo.toml

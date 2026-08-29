@@ -173,6 +173,55 @@ in Obsidian and your entries are just files.
 In a browser the identical code falls back to the browser's own storage, so
 `npm run dev` still works on any machine without the native toolchain.
 
+## Releasing installers automatically
+
+`.github/workflows/release.yml` builds macOS, Windows and Linux installers in
+parallel on GitHub's runners, so you never have to build by hand — and you get
+a Windows build without owning a Windows machine.
+
+**Cut a release:**
+
+```bash
+npm version 0.1.1        # bumps package.json and creates the tag
+git push --follow-tags
+```
+
+Or run **Actions → Release → Run workflow** and type a tag.
+
+It produces a **draft** GitHub Release — so you can check the binaries before
+anyone can download them — containing:
+
+| Platform | Artifact | Notes |
+|---|---|---|
+| macOS | `.dmg` | Universal: one download for Apple Silicon and Intel |
+| Windows | `.msi` and `.exe` | |
+| Linux | `.AppImage` and `.deb` | Built on Ubuntu 22.04 so it runs on 22.04 and newer |
+
+Typecheck and unit tests run before the (slow) Rust compile, so a broken web
+layer fails in about a minute instead of fifteen. Rust builds are cached, and
+one platform failing does not discard the others' binaries.
+
+`.github/workflows/rust.yml` separately runs `cargo fmt`, `clippy -D warnings`
+and `cargo check` whenever `src-tauri/` changes, so shell breakage surfaces on
+push rather than at release time.
+
+### Code signing (optional)
+
+Builds work unsigned — users get a one-time warning (macOS: right-click →
+**Open**; Windows: **More info → Run anyway**). To remove that warning, add
+these under Settings → Secrets and variables → Actions. The workflow picks up
+whichever are present and ignores the rest:
+
+| Secret | For |
+|---|---|
+| `APPLE_CERTIFICATE` | base64 of your Developer ID `.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | its password |
+| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Name (TEAMID)` |
+| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | notarisation; use an app-specific password |
+
+Apple signing needs a paid Developer account ($99/yr). Only worth it when
+distributing to other people.
+
 ## Deploying to Vercel
 
 The whole app is a static site — there is no server, no database and no API.

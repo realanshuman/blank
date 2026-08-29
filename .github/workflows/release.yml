@@ -1,0 +1,122 @@
+name: Release
+
+# Tag a version to cut a release:
+#   npm version 0.1.1 && git push --follow-tags
+# Or run this manually from the Actions tab.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.0). Created if missing.'
+        required: true
+        default: 'v0.1.0'
+
+# The release job pushes a GitHub Release, so it needs write access.
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      # One platform failing should not throw away binaries that did build.
+      fail-fast: false
+      matrix:
+        include:
+          # Universal binary covers both Apple Silicon and Intel Macs in one
+          # .app, so there is only one download for users to choose from.
+          - platform: macos-14
+            target: universal-apple-darwin
+            label: macOS
+          - platform: windows-latest
+            target: ''
+            label: Windows
+          # Built on the oldest supported Ubuntu on purpose: glibc is forward
+          # compatible but not backward, so a 24.04 binary will not start on
+          # 22.04 while this one runs on both.
+          - platform: ubuntu-22.04
+            target: ''
+            label: Linux
+
+    runs-on: ${{ matrix.platform }}
+    name: ${{ matrix.label }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libsoup-3.0-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            patchelf \
+            build-essential \
+            pkg-config
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Both targets are required for the universal macOS binary.
+          targets: ${{ matrix.target == 'universal-apple-darwin' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      # Rust builds are slow from cold; this takes repeat runs from ~15 min to
+      # a few minutes.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: ${{ matrix.platform }}-${{ matrix.target }}
+
+      - run: npm ci
+
+      # Fail before the slow Rust compile if the web layer is broken.
+      - name: Typecheck and unit tests
+        run: |
+          npm run typecheck
+          npm run test
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Apple signing and notarisation. All optional: with none of these
+          # set the build still succeeds and produces an unsigned app.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: 'Blank __VERSION__'
+          releaseBody: |
+            Download the file for your platform below.
+
+            - **macOS** — `.dmg`. Works on both Apple Silicon and Intel.
+            - **Windows** — `.msi` or the `.exe` setup.
+            - **Linux** — `.AppImage` or `.deb`.
+
+            These builds are unsigned unless signing secrets are configured, so
+            the first launch shows a warning: on macOS right-click the app and
+            choose **Open**; on Windows click **More info → Run anyway**.
+          # Draft so you can check the binaries before anyone can download them.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.target != '' && format('--target {0}', matrix.target) || '' }}
