@@ -44,8 +44,9 @@ today, and never losing a draft.
 
 **Export**
 
-- PDF (through the system print dialog, for real typography), Word `.docx`,
-  plain text, Markdown, and bulk CSV / JSON for your whole archive.
+- PDF, Word `.docx`, plain text, Markdown, and bulk CSV / JSON for your whole
+  archive. PDFs are generated directly rather than through a print dialog, so
+  the output is identical on every platform and needs no user interaction.
 
 **Everywhere**
 
