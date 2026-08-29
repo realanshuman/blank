@@ -9,15 +9,49 @@ test.describe('landing page', () => {
     await expect(page.locator('.cm-content')).toHaveCount(0)
   })
 
-  test('ships no JavaScript', async ({ page }) => {
+  test('loads no external JavaScript', async ({ page }) => {
     await page.goto('/')
-    const scripts = await page.locator('script').count()
-    expect(scripts, 'landing page should be pure HTML/CSS').toBe(0)
+    const external = await page.locator('script[src]').count()
+    expect(external, 'landing page should not fetch any JS').toBe(0)
+  })
+
+  test('the download button works with JavaScript disabled', async ({ browser }) => {
+    // The inline script only renames the button. Everything must still work
+    // without it, so the page is never dependent on JS to be usable.
+    const context = await browser.newContext({ javaScriptEnabled: false })
+    const page = await context.newPage()
+    await page.goto('/')
+    const button = page.locator('#download')
+    await expect(button).toHaveText('Download')
+    await expect(button).toHaveAttribute('href', /github\.com\/.+\/releases\/latest/)
+    await context.close()
+  })
+
+  test('names the platform when JavaScript runs', async ({ page }) => {
+    await page.goto('/')
+    // The test browser reports Linux.
+    await expect(page.locator('#download')).toHaveText(/Download for (Mac|Windows|Linux)/)
+  })
+
+  test('offers a download for every desktop platform', async ({ page }) => {
+    await page.goto('/')
+    // Scoped to the downloads section: the hero button is renamed by the
+    // platform script and would otherwise match one of these too.
+    const section = page.locator('#download-section')
+    for (const name of ['Download for Mac', 'Download for Windows', 'Download for Linux']) {
+      await expect(section.getByRole('link', { name, exact: true })).toBeVisible()
+    }
+  })
+
+  test('warns about the unsigned first launch', async ({ page }) => {
+    await page.goto('/')
+    // Without this note the first launch looks like the app is broken.
+    await expect(page.locator('.notice')).toContainText('right-click')
   })
 
   test('the primary call to action opens the app', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('link', { name: 'Start writing' }).click()
+    await page.getByRole('link', { name: 'Try it in the browser' }).click()
     await page.waitForSelector('.cm-content')
     await expect(page.locator('.cm-placeholder')).toHaveText('Start with one sentence')
   })
@@ -25,6 +59,12 @@ test.describe('landing page', () => {
   test('the closing call to action also opens the app', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('link', { name: 'Open the canvas' }).click()
+    await page.waitForSelector('.cm-content')
+  })
+
+  test('the browser fallback link opens the app', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('link', { name: 'Try it in the browser' }).click()
     await page.waitForSelector('.cm-content')
   })
 

@@ -306,6 +306,30 @@
         color: var(--muted);
       }
 
+      .notice {
+        margin-top: 1.5rem;
+        padding: 1rem 1.15rem;
+        border: 1px solid var(--rule);
+        border-left: 3px solid var(--accent);
+        border-radius: 8px;
+        background: var(--page);
+        font-size: 0.87rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .notice strong, .notice b { color: var(--ink); font-weight: 600; }
+
+      .card code {
+        font-family: var(--mono);
+        font-size: 0.82em;
+        background: var(--ground);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 0.05em 0.32em;
+      }
+
+      .sec-sub a { color: var(--accent); }
+
       .hl { background: rgba(43, 108, 176, 0.16); border-radius: 2px; padding: 0 2px; }
 
       /* ---- closing ---- */
@@ -347,10 +371,10 @@
           Markdown.
         </p>
         <div class="cta">
-          <a class="btn btn--solid" href="/app">Start writing</a>
-          <a class="btn btn--ghost" href="https://github.com/realanshuman/blank">View source</a>
+          <a class="btn btn--solid" id="download" href="https://github.com/realanshuman/blank/releases/latest">Download</a>
+          <a class="btn btn--ghost" href="/app">Try it in the browser</a>
         </div>
-        <p class="cta-note">Free and open source · Works in your browser · Mac &amp; Windows apps</p>
+        <p class="cta-note" id="download-note">Free and open source · macOS, Windows and Linux</p>
       </header>
 
       <!-- The product itself, rebuilt in CSS so it always matches the real UI. -->
@@ -500,6 +524,52 @@
         </div>
       </section>
 
+
+      <section class="wrap" id="download-section">
+        <h2 class="sec">Get the app</h2>
+        <p class="sec-sub">
+          Free, and there is no account to make. Prefer not to install anything?
+          <a href="/app">Use it in your browser</a> — same app, same features.
+        </p>
+
+        <div class="grid">
+          <article class="card">
+            <h3>macOS</h3>
+            <p style="margin-bottom:1rem">
+              Universal — works on both Apple Silicon and Intel. Download the
+              <code>.dmg</code>, open it, drag Blank to Applications.
+            </p>
+            <a class="btn btn--solid" href="https://github.com/realanshuman/blank/releases/latest">Download for Mac</a>
+          </article>
+
+          <article class="card">
+            <h3>Windows</h3>
+            <p style="margin-bottom:1rem">
+              Download the <code>.msi</code> installer and run it. The
+              <code>.exe</code> setup next to it works too.
+            </p>
+            <a class="btn btn--ghost" href="https://github.com/realanshuman/blank/releases/latest">Download for Windows</a>
+          </article>
+
+          <article class="card">
+            <h3>Linux</h3>
+            <p style="margin-bottom:1rem">
+              An <code>.AppImage</code> that runs anywhere, or a <code>.deb</code>
+              for Debian and Ubuntu.
+            </p>
+            <a class="btn btn--ghost" href="https://github.com/realanshuman/blank/releases/latest">Download for Linux</a>
+          </article>
+        </div>
+
+        <div class="notice">
+          <strong>First launch shows a warning.</strong> These builds are not code-signed
+          yet, so your system does not recognise the publisher. On macOS,
+          <b>right-click the app and choose Open</b>, then Open again — once only, after
+          which double-clicking works normally. On Windows, click
+          <b>More info → Run anyway</b>.
+        </div>
+      </section>
+
       <section class="wrap close">
         <h2 class="sec">Start with one sentence.</h2>
         <p class="sec-sub" style="margin-inline:auto">
@@ -507,7 +577,7 @@
         </p>
         <div class="cta">
           <a class="btn btn--solid" href="/app">Open the canvas</a>
-          <a class="btn btn--ghost" href="https://github.com/realanshuman/blank/releases">Desktop apps</a>
+          <a class="btn btn--ghost" href="#download-section">Download the app</a>
         </div>
       </section>
     </main>
@@ -519,5 +589,37 @@
         <a href="/app">Open the app</a>
       </span>
     </footer>
+
+    <!--
+      Progressive enhancement only: the button already reads "Download" and
+      points at the releases page, so the site is fully usable with this
+      disabled. All this does is name the visitor's platform.
+    -->
+    <script>
+      (function () {
+        var ua = navigator.userAgent || ''
+        var platform = navigator.platform || ''
+        var name = null
+
+        if (/Mac|iPhone|iPad|iPod/.test(platform + ua)) name = 'Mac'
+        else if (/Win/.test(platform + ua)) name = 'Windows'
+        else if (/Linux|X11/.test(platform + ua)) name = 'Linux'
+
+        if (!name) return
+
+        var button = document.getElementById('download')
+        if (button) button.textContent = 'Download for ' + name
+
+        // A phone cannot install a desktop build; point it somewhere useful.
+        if (/iPhone|iPad|iPod|Android/.test(ua)) {
+          if (button) {
+            button.textContent = 'Start writing'
+            button.setAttribute('href', '/app')
+          }
+          var note = document.getElementById('download-note')
+          if (note) note.textContent = 'Runs in your browser · Desktop apps for Mac and Windows'
+        }
+      })()
+    </script>
   </body>
 </html>
