@@ -24,11 +24,13 @@ export interface Settings {
 }
 
 export const FONT_STACKS: Record<FontChoice, string> = {
+  // Lato and Source Serif 4 are bundled, so these are guaranteed rather than
+  // dependent on what the machine happens to have installed.
   lato: "'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif",
   arial: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
   system:
     "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-  serif: "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif",
+  serif: "'Source Serif 4', 'Iowan Old Style', Palatino, Georgia, serif",
   mono: "'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace",
 }
 

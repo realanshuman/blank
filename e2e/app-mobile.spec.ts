@@ -57,7 +57,9 @@ test.describe('the app on a phone', () => {
     )
     expect(overflow).toBeLessThanOrEqual(0)
 
-    await backdrop.click()
+    // The backdrop spans the screen but the sheet covers most of it, so click
+    // where a thumb actually lands: the visible sliver beside the sheet.
+    await backdrop.click({ position: { x: 12, y: 300 } })
     await expect(page.locator('.sidebar')).toHaveCount(0)
     await context.close()
   })

@@ -99,16 +99,14 @@ function EntryRow({
 
       <span className="entry__meta">
         <span>{timeLabel(meta.updatedAt)}</span>
-        <span>·</span>
-        <span>{meta.wordCount.toLocaleString()}w</span>
       </span>
 
-      {hit ? (
+      {/* The preview earns its space only when it carries a search match;
+          otherwise rows stay two quiet lines, like the original. */}
+      {hit && (
         <span className="entry__snippet">
           <Highlighted hit={hit} />
         </span>
-      ) : (
-        meta.excerpt && <span className="entry__snippet">{meta.excerpt}</span>
       )}
 
       {meta.tags.length > 0 && (

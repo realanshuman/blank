@@ -12,6 +12,7 @@
     "core:window:allow-is-fullscreen",
     "core:window:allow-minimize",
     "core:webview:allow-print",
+    "opener:allow-open-url",
     "os:default",
     "store:default",
     "dialog:allow-open",

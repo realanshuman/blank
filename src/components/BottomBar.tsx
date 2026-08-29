@@ -3,8 +3,15 @@ import { useStore } from '../state/store'
 import { FONT_LABELS, FONT_SIZES, type FontChoice } from '../state/settings'
 import { useTimer } from '../session/timer'
 import { countWords } from '../model/entry'
+import { openReflect } from '../features/reflect'
 
 const FONT_ORDER: FontChoice[] = ['lato', 'arial', 'system', 'serif', 'mono']
+
+/** The original's "Random": hand the choice over, but never a no-op. */
+function randomFont(current: FontChoice): FontChoice {
+  const others = FONT_ORDER.filter((font) => font !== current)
+  return others[Math.floor(Math.random() * others.length)] ?? current
+}
 
 function Separator() {
   return <span className="bar__sep" aria-hidden="true">•</span>
@@ -90,6 +97,14 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
             </span>
           ))}
           <Separator />
+          <button
+            className="bar__btn"
+            onClick={() => updateSettings({ fontFamily: randomFont(settings.fontFamily) })}
+            title="Pick a font for me"
+          >
+            Random
+          </button>
+          <Separator />
         </span>
         <button
           className="bar__btn"
@@ -122,6 +137,18 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
         {/* Both stay reachable from the command palette on a phone, where the
             bar has room for only what is used while actually writing. */}
         <span className="bar__phone-hide">
+          <button
+            className="bar__btn"
+            onClick={() => {
+              const entry = useStore.getState().currentEntry()
+              if (entry && entry.body.trim()) void openReflect(entry, 'claude')
+            }}
+            title="Reflect on this entry with AI"
+          >
+            Chat
+          </button>
+          <Separator />
+
           <button
             className="bar__btn"
             aria-pressed={settings.focusScope !== 'off'}

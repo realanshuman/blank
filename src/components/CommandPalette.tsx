@@ -54,6 +54,18 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             },
           ]
         : []),
+      ...(['claude', 'chatgpt'] as const).map((target) => ({
+        id: `reflect-${target}`,
+        label: target === 'claude' ? 'Reflect on this entry with Claude' : 'Reflect on this entry with ChatGPT',
+        section: 'Entry',
+        run: async () => {
+          await store.flush()
+          const entry = useStore.getState().currentEntry()
+          if (!entry || !entry.body.trim()) return
+          const { openReflect } = await import('../features/reflect')
+          await openReflect(entry, target)
+        },
+      })),
       {
         id: 'export-pdf',
         label: 'Export as PDF',

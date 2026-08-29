@@ -1,0 +1,25 @@
+/*
+ * Bundled typefaces.
+ *
+ * These were previously named in the font stacks but never shipped, so
+ * choosing "Lato" silently fell back to Helvetica and the picker was lying:
+ * the app rendered differently on every machine depending on what happened to
+ * be installed. Self-hosting also means no network request, which matters for
+ * an offline-first desktop app.
+ *
+ * Only the weights the app actually uses are imported. Each extra face is
+ * roughly 25KB, so pulling in a full family would triple the cost for styles
+ * nothing references.
+ */
+
+/* Body text: regular, bold for markdown strong and headings, italic for em. */
+@import '@fontsource/lato/400.css';
+@import '@fontsource/lato/400-italic.css';
+@import '@fontsource/lato/700.css';
+@import '@fontsource/lato/700-italic.css';
+
+/* The Serif option. Source Serif 4 is drawn for screen reading rather than
+   print, which is what this is for. */
+@import '@fontsource/source-serif-4/400.css';
+@import '@fontsource/source-serif-4/400-italic.css';
+@import '@fontsource/source-serif-4/600.css';

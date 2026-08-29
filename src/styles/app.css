@@ -1,3 +1,5 @@
+@import './fonts.css';
+
 /* ---------------------------------------------------------------------------
    Theme tokens. Every colour in the app resolves through these, so adding a
    theme means adding one block rather than hunting through components.
@@ -347,10 +349,10 @@ button {
 }
 
 .daygroup {
-  padding: 10px 14px 4px;
-  font-size: 12px;
-  color: var(--blank-muted);
-  border-bottom: 1px solid var(--blank-rule);
+  padding: 14px 14px 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--blank-faint);
   background: var(--blank-panel);
   position: sticky;
   top: 0;
@@ -361,8 +363,13 @@ button {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--blank-rule);
+  /* Two quiet lines per row. A rule under every row read as a table; the
+     date group headers already provide the structure. */
+  padding: 7px 14px;
+  border-bottom: 0;
+  border-radius: 6px;
+  margin: 0 4px;
+  width: calc(100% - 8px);
   transition: background-color 120ms ease;
 }
 
@@ -392,7 +399,7 @@ button {
 }
 
 .entry__meta {
-  margin-top: 3px;
+  margin-top: 1px;
   font-size: 11px;
   color: var(--blank-faint);
   display: flex;

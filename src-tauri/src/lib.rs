@@ -10,7 +10,8 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_store::Builder::new().build());
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_opener::init());
 
     // Desktop-only plugins. `persisted-scope` must be registered BEFORE the fs
     // plugin so the saved folder grants are restored before anything reads.
