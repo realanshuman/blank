@@ -49,8 +49,9 @@ today, and never losing a draft.
 
 **Everywhere**
 
-- Runs in any browser today, installable as a PWA.
-- Native macOS, Windows and iOS builds via Tauri (in progress — see below).
+- Runs in any browser today, and deploys as a static site (see below).
+- Native macOS, Windows and iOS builds via Tauri, and PWA install — both still
+  to come; see Status.
 
 ---
 
@@ -175,9 +176,10 @@ anchor line — and lets CodeMirror do the scrolling itself.
 
 ## Status
 
-Phase 1 — the web core — is done and tested: 53 unit tests and 12 end-to-end
+Phase 1 — the web core — is done and tested: 64 unit tests and 13 end-to-end
 tests covering the parity features, live Markdown, hardcore mode's every
-deletion path, persistence across reloads, search, and typewriter geometry.
+deletion path, persistence across reloads, search, focus-mode dimming, and
+typewriter geometry.
 
 Still to come:
 
