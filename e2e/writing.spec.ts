@@ -233,3 +233,35 @@ test.describe('settings', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'sepia')
   })
 })
+
+test.describe('focus mode', () => {
+  test('dims other sentences but never the one being written', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('First sentence here. Second sentence here. Third one now.')
+
+    await page.getByTitle('Dim everything but the current sentence').click()
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('End')
+    await page.waitForTimeout(300)
+
+    // Something must be dimmed, or focus mode is not doing anything...
+    await expect(page.locator('.cm-blank-dimmed').first()).toBeVisible()
+
+    // ...but the caret's own sentence must stay undimmed. Regression guard:
+    // with the caret past the final full stop the whole document went grey.
+    const undimmed = await page.evaluate(() => {
+      const content = document.querySelector('.cm-content')
+      if (!content) return ''
+      let text = ''
+      const walk = document.createTreeWalker(content, NodeFilter.SHOW_TEXT)
+      for (let node = walk.nextNode(); node; node = walk.nextNode()) {
+        const parent = node.parentElement
+        if (parent && !parent.closest('.cm-blank-dimmed')) text += node.textContent ?? ''
+      }
+      return text
+    })
+
+    expect(undimmed.trim()).not.toBe('')
+    expect(undimmed).toContain('Third one now.')
+  })
+})

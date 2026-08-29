@@ -23,20 +23,38 @@ const dimmedMark = Decoration.mark({ class: 'cm-blank-dimmed' })
 const SENTENCE_END = /[.!?…]["'”’)\]]*(\s|$)/g
 
 /**
- * Find the sentence containing `pos` within the paragraph spanning
- * [from, to). Returns absolute document offsets.
+ * Find the sentence containing `offset` within the block of text starting at
+ * document position `base`. Returns absolute document offsets.
+ *
+ * Exported for testing: the end-of-text case is easy to get wrong and dims the
+ * whole document when it is.
  */
-function sentenceAround(text: string, offset: number, base: number): [number, number] {
+export function sentenceAround(text: string, offset: number, base: number): [number, number] {
   SENTENCE_END.lastIndex = 0
+
+  const sentences: Array<[number, number]> = []
   let start = 0
   let match: RegExpExecArray | null
 
   while ((match = SENTENCE_END.exec(text)) !== null) {
     const end = match.index + match[0].length
-    if (end > offset) return [base + start, base + end]
+    sentences.push([start, end])
     start = end
   }
-  return [base + start, base + text.length]
+  // Trailing text with no terminator yet — the sentence being written.
+  if (start < text.length) sentences.push([start, text.length])
+
+  if (sentences.length === 0) return [base, base + text.length]
+
+  for (const [from, to] of sentences) {
+    if (to > offset) return [base + from, base + to]
+  }
+
+  // The caret sits at or past the final terminator, which is exactly where it
+  // is after typing a closing full stop. Focus the last sentence rather than
+  // returning an empty range, which would dim the entire document.
+  const last = sentences[sentences.length - 1] as [number, number]
+  return [base + last[0], base + last[1]]
 }
 
 /** The block of consecutive non-blank lines containing the cursor. */
