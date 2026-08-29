@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { countWords, createEntry, type Entry, type EntryMeta } from '../model/entry'
 import { searchEntries, type SearchHit } from '../model/search'
 import { EntryRepository } from '../storage/repository'
-import { BrowserStorage } from '../storage/browser'
+import { createStorage } from '../storage'
 import type { SnapshotMeta } from '../storage/types'
 import {
   applySettingsToDocument,
@@ -65,6 +65,10 @@ interface AppState {
   /** Full entries, bodies included — for export. */
   allEntries(): Entry[]
   currentEntry(): Entry | null
+
+  /** True only on builds with a real filesystem. */
+  canChooseFolder: boolean
+  chooseFolder(): Promise<void>
 }
 
 let repository: EntryRepository | null = null
@@ -92,17 +96,26 @@ export const useStore = create<AppState>((set, get) => ({
   snapshots: [],
   query: '',
   results: [],
+  canChooseFolder: false,
 
   async init() {
     if (repository) return
-    repository = new EntryRepository(new BrowserStorage())
+    // Real files in a chosen folder under Tauri; this device's local storage
+    // in a browser. Everything above this line is identical either way.
+    repository = new EntryRepository(await createStorage())
     await repository.init()
 
     const settings = loadSettings()
     applySettingsToDocument(settings)
 
     const entries = repository.list()
-    set({ ready: true, entries, settings, storageLocation: repository.storageLocation })
+    set({
+      ready: true,
+      entries,
+      settings,
+      storageLocation: repository.storageLocation,
+      canChooseFolder: repository.canChooseFolder,
+    })
 
     // Open the most recent entry, or start a blank one on first launch.
     const mostRecent = entries[0]
@@ -265,6 +278,24 @@ export const useStore = create<AppState>((set, get) => ({
 
   resetSession() {
     set({ session: freshSession(countWords(get().currentBody)) })
+  },
+
+  async chooseFolder() {
+    const repo = requireRepository()
+    await get().flush()
+    const chosen = await repo.chooseFolder()
+    if (!chosen) return
+
+    const entries = repo.list()
+    set({ entries, storageLocation: repo.storageLocation, query: '', results: [] })
+
+    // The previous entry belongs to the old folder; open whatever is here now.
+    const first = entries[0]
+    if (first) {
+      await get().openEntry(first.id)
+    } else {
+      await get().newEntry()
+    }
   },
 
   allEntries() {

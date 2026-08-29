@@ -122,6 +122,57 @@ npm run dev
 
 Or grab a zip without git: **Code → Download ZIP** on the branch page.
 
+## Building the Mac app
+
+The native shell is written and its Rust compiles clean; macOS binaries have to
+be produced on a Mac, so these are the steps to run there.
+
+**One-time setup** (skip anything you already have):
+
+```bash
+xcode-select --install                                    # Apple build tools
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # Rust
+```
+
+**Run it:**
+
+```bash
+npm install
+npm run tauri:dev      # opens the real Mac app, hot-reloads as you edit
+```
+
+**Build a installable app:**
+
+```bash
+npm run tauri:build
+```
+
+That produces `src-tauri/target/release/bundle/`:
+
+- `macos/Blank.app` — drag to Applications
+- `dmg/Blank_0.1.0_aarch64.dmg` — the installer to share
+
+For an Intel + Apple Silicon universal build:
+
+```bash
+rustup target add x86_64-apple-darwin aarch64-apple-darwin
+npm run tauri:build -- --target universal-apple-darwin
+```
+
+Unsigned builds are fine for your own use — macOS will warn on first launch, and
+**right-click → Open** gets past it. Signing needs a paid Apple Developer
+account and is only worth it when distributing to other people.
+
+### What changes on the Mac
+
+Your writing becomes **real `.md` files in a folder you pick**. On first launch
+the app asks for one; "Change writing folder…" in the command palette (⌘K) moves
+it later. Point it at iCloud Drive or Dropbox and it syncs; open the same folder
+in Obsidian and your entries are just files.
+
+In a browser the identical code falls back to the browser's own storage, so
+`npm run dev` still works on any machine without the native toolchain.
+
 ## Deploying to Vercel
 
 The whole app is a static site — there is no server, no database and no API.
@@ -183,8 +234,10 @@ typewriter geometry.
 
 Still to come:
 
-- **Phase 2** — Tauri desktop shell: a folder you pick, real `.md` files on
-  disk, external-change watching, native menus, macOS and Windows builds.
+- **Phase 2** — Tauri desktop shell — **done, pending a build on a Mac.** The
+  Rust crate, config, capabilities and the filesystem storage adapter are all
+  written and `cargo check` passes; what remains is running `npm run tauri:build`
+  on macOS/Windows, plus external-change watching and native menus.
 - **Phase 3** — SQLite full-text index, a version-history timeline with diffs,
   and bulk export in a worker.
 - **Phase 4** — iOS, and PWA offline polish.

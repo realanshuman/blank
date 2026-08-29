@@ -24,6 +24,13 @@ export interface StorageAdapter {
   /** Human-readable description of where entries live, shown in the sidebar. */
   location(): string
 
+  /**
+   * Let the user move their writing to a different folder. Present only on
+   * backends that have a real filesystem — the UI hides the command when this
+   * is absent rather than sniffing the platform.
+   */
+  chooseVault?(): Promise<string | null>
+
   listIds(): Promise<string[]>
   read(id: string): Promise<string | null>
   write(id: string, contents: string): Promise<void>

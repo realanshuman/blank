@@ -16,6 +16,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const settings = useStore((state) => state.settings)
   const snapshots = useStore((state) => state.snapshots)
+  const canChooseFolder = useStore((state) => state.canChooseFolder)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -42,6 +43,17 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         section: 'Entry',
         run: () => store.newEntry(),
       },
+      // Only on builds with a real filesystem; the browser has no folder.
+      ...(canChooseFolder
+        ? [
+            {
+              id: 'choose-folder',
+              label: 'Change writing folder…',
+              section: 'Entry',
+              run: () => store.chooseFolder(),
+            },
+          ]
+        : []),
       {
         id: 'export-pdf',
         label: 'Export as PDF',
@@ -118,7 +130,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     ]
 
     return list
-  }, [settings, snapshots])
+  }, [settings, snapshots, canChooseFolder])
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()

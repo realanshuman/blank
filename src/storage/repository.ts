@@ -31,6 +31,18 @@ export class EntryRepository {
     return this.adapter.location()
   }
 
+  get canChooseFolder(): boolean {
+    return typeof this.adapter.chooseVault === 'function'
+  }
+
+  /** Returns the new path, or null if the user cancelled. */
+  async chooseFolder(): Promise<string | null> {
+    if (!this.adapter.chooseVault) return null
+    const chosen = await this.adapter.chooseVault()
+    if (chosen) await this.reload()
+    return chosen
+  }
+
   async init(): Promise<void> {
     await this.adapter.init()
     await this.reload()
