@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { marked } from 'marked'
-import { flattenInline, toPdfBytes } from '../src/export/pdf'
+import { flattenInline, lexBody, stripLeadingTitle, toPdfBytes } from '../src/export/pdf'
 import { renderExport } from '../src/export'
 import type { Entry } from '../src/model/entry'
 
@@ -76,20 +75,20 @@ describe('PDF generation', () => {
 
 describe('inline flattening', () => {
   const flatten = (markdown: string) => {
-    const [block] = marked.lexer(markdown)
+    const [block] = lexBody(markdown)
     return flattenInline(block && 'tokens' in block ? block.tokens : undefined)
   }
 
-  it('reflows soft line breaks into spaces', () => {
-    // A newline inside a markdown paragraph means a space. Preserving it made
-    // the PDF inherit whatever width the author's editor wrapped at.
-    expect(flatten('Some prose that the author\nhappened to wrap\nnarrowly.')).toBe(
-      'Some prose that the author happened to wrap narrowly.',
+  it('keeps a single newline as the writer\u2019s line break', () => {
+    // Strict markdown calls this a soft break meaning a space; collapsing it
+    // glued freewritten headings into the sentence after them. In this app a
+    // newline is where the writer ended the line, and the export honours it.
+    expect(flatten('What I verified\nG2A sets the flag')).toBe(
+      'What I verified\nG2A sets the flag',
     )
   })
 
-  it('keeps an explicit hard break', () => {
-    // Two trailing spaces is markdown's hard break and must survive.
+  it('keeps an explicit two-space hard break too', () => {
     expect(flatten('First line.  \nSecond line.')).toBe('First line.\nSecond line.')
   })
 
@@ -102,6 +101,30 @@ describe('inline flattening', () => {
   })
 })
 
+describe('stripping the leading title line', () => {
+  it('removes a plain first line that became the title', () => {
+    expect(stripLeadingTitle('What I verified\nG2A sets the flag', 'What I verified')).toBe(
+      'G2A sets the flag',
+    )
+  })
+
+  it('removes a heading that became the title, and the blank after it', () => {
+    expect(stripLeadingTitle('# Monday pages\n\nBody text.', 'Monday pages')).toBe(
+      'Body text.',
+    )
+  })
+
+  it('leaves the body alone when the first line is not the title', () => {
+    const body = 'G2A sets the flag\nMore text.'
+    expect(stripLeadingTitle(body, 'A different explicit title')).toBe(body)
+  })
+
+  it('survives an empty body', () => {
+    expect(stripLeadingTitle('', 'Title')).toBe('')
+    expect(stripLeadingTitle('\n\n', 'Title')).toBe('\n\n')
+  })
+})
+
 describe('the masthead', () => {
   it('does not repeat a heading that became the title', () => {
     // Both carry the same explicit title, so the mastheads match and any size
@@ -109,6 +132,14 @@ describe('the masthead', () => {
     const withHeading = toPdfBytes(entry('# Monday pages\n\nBody text.', { title: 'Monday pages' }))
     const withoutHeading = toPdfBytes(entry('Body text.', { title: 'Monday pages' }))
     expect(withHeading.byteLength).toBe(withoutHeading.byteLength)
+  })
+
+  it('does not repeat a plain first line that became the title', () => {
+    // The exact shape from the bug report: a freewritten entry whose first
+    // line is the title, no heading syntax anywhere.
+    const derived = toPdfBytes(entry('What I verified\nG2A sets the flag.'))
+    const explicit = toPdfBytes(entry('G2A sets the flag.', { title: 'What I verified' }))
+    expect(derived.byteLength).toBe(explicit.byteLength)
   })
 
   it('still renders a heading that is not the title', () => {

@@ -1,4 +1,4 @@
-import { marked, type Token } from 'marked'
+import type { Token } from 'marked'
 import {
   Document,
   HeadingLevel,
@@ -8,7 +8,7 @@ import {
   type IParagraphOptions,
 } from 'docx'
 import { countWords, deriveTitle, type Entry } from '../model/entry'
-import { toPdfBytes } from './pdf'
+import { lexBody, toPdfBytes } from './pdf'
 import { saveFile } from './save'
 
 export type ExportFormat = 'txt' | 'md' | 'csv' | 'json' | 'docx' | 'pdf'
@@ -226,7 +226,9 @@ function blockParagraphs(tokens: Token[]): Paragraph[] {
 }
 
 export async function toDocxBlob(entry: Entry): Promise<Blob> {
-  const tokens = marked.lexer(entry.body)
+  // Shared lexing with the PDF path: a single newline is the writer's line
+  // break, not a soft break to be collapsed.
+  const tokens = lexBody(entry.body)
   const body = blockParagraphs(tokens)
 
   const document = new Document({

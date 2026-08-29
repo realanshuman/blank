@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { marked, type Token } from 'marked'
-import { deriveTitle, type Entry } from '../model/entry'
+import { cleanTitleLine, deriveTitle, type Entry } from '../model/entry'
 
 /**
  * PDF generation, laid out by hand rather than handed to the system print
@@ -59,12 +59,39 @@ function toEncodable(text: string): string {
 }
 
 /**
- * Flatten inline markdown to plain text; PDF body copy is set in one style.
+ * Lex an entry the way a writer means it, shared by the PDF and DOCX paths.
  *
- * A newline inside a markdown paragraph is a soft break that means a space, not
- * a line break. Preserving it made the PDF inherit whatever width the author's
- * editor happened to wrap at, leaving short ragged lines. Only an explicit hard
- * break (a `br` token) survives as a real newline.
+ * Strict markdown says a single newline is a soft break meaning a space, and
+ * an earlier version obeyed that. It read as a design error the first time a
+ * real entry went through: freewriters end a line when they mean a new line,
+ * so "What I verified\nG2A sets…" was glued into one sentence. breaks: true
+ * turns those newlines into br tokens, which both exporters keep.
+ */
+export function lexBody(body: string): Token[] {
+  return marked.lexer(body, { gfm: true, breaks: true })
+}
+
+/**
+ * The masthead prints the title, and the title is derived from the body's
+ * first meaningful line, so that line must not render again underneath it.
+ * Works for a heading and for a plain first line alike; an explicit title
+ * that matches nothing leaves the body untouched.
+ */
+export function stripLeadingTitle(body: string, title: string): string {
+  const lines = body.split('\n')
+  let first = 0
+  while (first < lines.length && (lines[first] ?? '').trim() === '') first += 1
+  if (first >= lines.length) return body
+  if (cleanTitleLine(lines[first] ?? '') !== title) return body
+
+  let next = first + 1
+  if (next < lines.length && (lines[next] ?? '').trim() === '') next += 1
+  return [...lines.slice(0, first), ...lines.slice(next)].join('\n')
+}
+
+/**
+ * Flatten inline markdown to plain text; PDF body copy is set in one style.
+ * br tokens (the writer's line endings, via breaks: true) stay as newlines.
  */
 export function flattenInline(tokens: Token[] | undefined): string {
   if (!tokens) return ''
@@ -217,17 +244,7 @@ export function toPdfBytes(entry: Entry): Uint8Array {
   )
   layout.rule()
 
-  const tokens = marked.lexer(entry.body)
-
-  // The title is derived from the first heading, so rendering that heading
-  // again directly under the masthead would print it twice.
-  const [firstBlock] = tokens
-  const body =
-    firstBlock?.type === 'heading' && flattenInline(firstBlock.tokens).trim() === title
-      ? tokens.slice(1)
-      : tokens
-
-  renderTokens(layout, body)
+  renderTokens(layout, lexBody(stripLeadingTitle(entry.body, title)))
 
   // Page numbers, added once the total is known.
   const pages = doc.getNumberOfPages()
