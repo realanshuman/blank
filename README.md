@@ -115,12 +115,11 @@ BLANK_CHROMIUM=/path/to/chrome npm run e2e
 ```bash
 git clone https://github.com/realanshuman/blank.git
 cd blank
-git checkout claude/note-taking-app-local-jteptj
 npm install
 npm run dev
 ```
 
-Or grab a zip without git: **Code → Download ZIP** on the branch page.
+Or grab a zip without git: **Code → Download ZIP**.
 
 ## Building the Mac app
 
@@ -235,10 +234,9 @@ The deploy serves two pages:
 | `/` | the landing page — pure HTML and CSS, no JavaScript at all |
 | `/app` | the writing app |
 
-**From the dashboard:** New Project → import `realanshuman/blank` → set the
-branch to `claude/note-taking-app-local-jteptj` → Deploy. `vercel.json` already
-pins the framework, build command, output directory, routing and cache headers,
-so there is nothing to configure.
+**From the dashboard:** New Project → import `realanshuman/blank` → Deploy.
+`vercel.json` already pins the framework, build command, output directory,
+routing and cache headers, so there is nothing to configure.
 
 **From the CLI:**
 
