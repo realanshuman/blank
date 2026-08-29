@@ -11,6 +11,15 @@
     <meta name="theme-color" content="#fafaf9" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23fafaf9'/><rect x='9' y='9' width='2' height='14' fill='%231a1a1a'/><rect x='14' y='9' width='10' height='2' fill='%23dedede'/><rect x='14' y='14' width='7' height='2' fill='%23dedede'/></svg>" />
     <link rel="stylesheet" href="/src/styles/site.css" />
+    <!-- Honour the theme chosen on the landing page, before paint. -->
+    <script>
+      try {
+        var storedTheme = localStorage.getItem('blank.site.theme')
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+          document.documentElement.dataset.theme = storedTheme
+        }
+      } catch (e) {}
+    </script>
     <style>
       .page-head { padding: clamp(2.5rem, 1rem + 6vw, 4.5rem) 0 2.5rem; }
       .crumb {

@@ -17,6 +17,15 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23fafaf9'/><rect x='9' y='9' width='2' height='14' fill='%231a1a1a'/><rect x='14' y='9' width='10' height='2' fill='%23dedede'/><rect x='14' y='14' width='7' height='2' fill='%23dedede'/></svg>" />
 
     <link rel="stylesheet" href="/src/styles/site.css" />
+    <!-- Runs before paint so a stored choice never flashes the other theme. -->
+    <script>
+      try {
+        var storedTheme = localStorage.getItem('blank.site.theme')
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+          document.documentElement.dataset.theme = storedTheme
+        }
+      } catch (e) {}
+    </script>
   </head>
 
   <body>
@@ -245,6 +254,12 @@
         <a href="/install">Install guide</a> ·
         <a href="https://github.com/realanshuman/blank">GitHub</a> ·
         <a href="/app">Open the app</a>
+        <!-- Hidden until the script below arms it: a control that cannot do
+             anything should not be shown. -->
+        <button id="theme-toggle" class="theme-toggle" hidden aria-label="Switch to dark mode">
+          <span class="theme-toggle__moon" aria-hidden="true">☾</span>
+          <span class="theme-toggle__sun" aria-hidden="true">☀</span>
+        </button>
       </span>
     </footer>
 
@@ -277,6 +292,38 @@
           var note = document.getElementById('download-note')
           if (note) note.textContent = 'Runs in your browser · Desktop apps for Mac and Windows'
         }
+      })()
+    </script>
+
+    <script>
+      (function () {
+        var button = document.getElementById('theme-toggle')
+        if (!button) return
+        button.hidden = false
+
+        var systemDark = matchMedia('(prefers-color-scheme: dark)')
+
+        function effectiveTheme() {
+          var chosen = document.documentElement.dataset.theme
+          if (chosen === 'light' || chosen === 'dark') return chosen
+          return systemDark.matches ? 'dark' : 'light'
+        }
+
+        function updateLabel() {
+          var next = effectiveTheme() === 'dark' ? 'light' : 'dark'
+          button.setAttribute('aria-label', 'Switch to ' + next + ' mode')
+          button.title = button.getAttribute('aria-label')
+        }
+
+        button.addEventListener('click', function () {
+          var next = effectiveTheme() === 'dark' ? 'light' : 'dark'
+          document.documentElement.dataset.theme = next
+          try { localStorage.setItem('blank.site.theme', next) } catch (e) {}
+          updateLabel()
+        })
+
+        systemDark.addEventListener('change', updateLabel)
+        updateLabel()
       })()
     </script>
   </body>

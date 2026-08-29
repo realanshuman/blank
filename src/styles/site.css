@@ -32,8 +32,14 @@
         --edge: clamp(1.1rem, 0.5rem + 2.4vw, 1.5rem);
       }
 
+      /*
+       * Dark tokens appear twice: once for a system preference with no explicit
+       * choice, once for the footer switch setting data-theme="dark". Pure CSS
+       * cannot share a block across those two selector contexts, so KEEP THE
+       * TWO LISTS IDENTICAL when editing colours.
+       */
       @media (prefers-color-scheme: dark) {
-        :root {
+        :root:not([data-theme='light']) {
           --ink: #e8e8e6;
           --muted: #9a9a97;
           --faint: #5e5e5c;
@@ -44,6 +50,55 @@
           --panel: #1f1f23;
           --accent: #86b0dd;
         }
+      }
+
+      :root[data-theme='dark'] {
+        --ink: #e8e8e6;
+        --muted: #9a9a97;
+        --faint: #5e5e5c;
+        --dim: #3a3a38;
+        --page: #1c1c1f;
+        --ground: #141416;
+        --rule: #2a2a2e;
+        --panel: #1f1f23;
+        --accent: #86b0dd;
+      }
+
+      /* ---- the footer theme switch ---- */
+      .theme-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        margin-left: 0.6rem;
+        vertical-align: middle;
+        border: 1px solid var(--rule);
+        border-radius: 999px;
+        background: var(--page);
+        color: var(--muted);
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.95rem;
+        padding: 0;
+        transition: color 120ms ease, border-color 120ms ease;
+      }
+      /* display on the class defeats the hidden attribute, so restate it:
+         without JavaScript the switch could do nothing and must not appear. */
+      .theme-toggle[hidden] { display: none; }
+      .theme-toggle:hover { color: var(--ink); border-color: var(--faint); }
+      .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+      /*
+       * The glyph mirrors what a click gives you: a moon while light, a sun
+       * while dark. Driven from the same two selector contexts as the tokens.
+       */
+      .theme-toggle__sun { display: none; }
+      :root[data-theme='dark'] .theme-toggle__sun { display: inline; }
+      :root[data-theme='dark'] .theme-toggle__moon { display: none; }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) .theme-toggle__sun { display: inline; }
+        :root:not([data-theme='light']) .theme-toggle__moon { display: none; }
       }
 
       * { box-sizing: border-box; }
@@ -493,6 +548,10 @@ letter-spacing: 0;
       /* Touch devices of any size: links in the footer and the platform nav are
          thumb targets, not just text. */
       @media (hover: none), (max-width: 52rem) {
+        .theme-toggle {
+          width: 2.75rem;
+          height: 2.75rem;
+        }
         footer a,
         .platform-nav a {
           display: inline-flex;

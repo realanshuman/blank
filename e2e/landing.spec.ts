@@ -96,3 +96,71 @@ test.describe('landing page', () => {
     expect(overflow, 'page should not scroll sideways').toBeLessThanOrEqual(0)
   })
 })
+
+test.describe('theme switch', () => {
+  test('flips the page to dark and back', async ({ page }) => {
+    await page.goto('/')
+    const toggle = page.locator('#theme-toggle')
+    await expect(toggle).toBeVisible()
+
+    const background = () =>
+      page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+
+    const light = await background()
+    await toggle.click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    const dark = await background()
+    expect(dark).not.toBe(light)
+
+    await toggle.click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    expect(await background()).toBe(light)
+  })
+
+  test('an explicit choice beats the system preference', async ({ browser }) => {
+    const context = await browser.newContext({ colorScheme: 'dark' })
+    const page = await context.newPage()
+    await page.goto('/')
+    // System is dark, so the switch offers light; take it.
+    await page.locator('#theme-toggle').click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    const background = await page.evaluate(
+      () => getComputedStyle(document.body).backgroundColor,
+    )
+    // The light ground, not the dark one, despite prefers-color-scheme: dark.
+    expect(background).toBe('rgb(250, 250, 249)')
+    await context.close()
+  })
+
+  test('the choice survives a reload and reaches the install page', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('#theme-toggle').click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+
+    // Navigating must not flip the theme back; the install page honours it.
+    await page.goto('/install')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  })
+
+  test('is not shown when JavaScript is off, where it could do nothing', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false })
+    const page = await context.newPage()
+    await page.goto('/')
+    await expect(page.locator('#theme-toggle')).toBeHidden()
+    await context.close()
+  })
+
+  test('shows the glyph for what a click gives you', async ({ page }) => {
+    await page.goto('/')
+    // Light page: offer the moon.
+    await expect(page.locator('.theme-toggle__moon')).toBeVisible()
+    await expect(page.locator('.theme-toggle__sun')).toBeHidden()
+    await page.locator('#theme-toggle').click()
+    // Dark page: offer the sun.
+    await expect(page.locator('.theme-toggle__sun')).toBeVisible()
+    await expect(page.locator('.theme-toggle__moon')).toBeHidden()
+  })
+})
