@@ -30,6 +30,28 @@ export function App() {
     }
   }, [])
 
+  // The iOS keyboard shrinks the visual viewport without resizing the layout
+  // viewport, so a bottom-anchored bar ends up underneath it. Track the
+  // difference and let CSS lift the bar clear.
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+
+    const update = () => {
+      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+      document.documentElement.style.setProperty('--blank-keyboard-inset', `${inset}px`)
+    }
+
+    update()
+    viewport.addEventListener('resize', update)
+    viewport.addEventListener('scroll', update)
+    return () => {
+      viewport.removeEventListener('resize', update)
+      viewport.removeEventListener('scroll', update)
+      document.documentElement.style.removeProperty('--blank-keyboard-inset')
+    }
+  }, [])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const accel = event.metaKey || event.ctrlKey
@@ -64,7 +86,18 @@ export function App() {
         <Canvas />
         <BottomBar onOpenPalette={() => setPaletteOpen(true)} />
       </div>
-      {sidebarOpen && <HistorySidebar />}
+      {sidebarOpen && (
+        <>
+          {/* Only visible on phones, where the sidebar is an overlay. Tapping
+              it is the obvious way back to the writing. */}
+          <button
+            className="sidebar__backdrop"
+            aria-label="Close history"
+            onClick={() => useStore.getState().updateSettings({ sidebarOpen: false })}
+          />
+          <HistorySidebar />
+        </>
+      )}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   )

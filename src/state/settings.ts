@@ -58,6 +58,16 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarOpen: true,
 }
 
+/**
+ * On a phone the sidebar is an overlay covering the canvas, so opening there by
+ * default would hide the writing surface on first launch. Only applies when
+ * nothing has been stored yet; an explicit choice always wins.
+ */
+function defaultSidebarOpen(): boolean {
+  if (typeof window === 'undefined') return true
+  return window.innerWidth > 720
+}
+
 const STORAGE_KEY = 'blank.settings.v1'
 
 function isFontChoice(value: unknown): value is FontChoice {
@@ -106,9 +116,12 @@ export function coerceSettings(raw: unknown): Settings {
 export function loadSettings(): Settings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    return coerceSettings(stored ? JSON.parse(stored) : null)
+    if (!stored) {
+      return { ...DEFAULT_SETTINGS, sidebarOpen: defaultSidebarOpen() }
+    }
+    return coerceSettings(JSON.parse(stored))
   } catch {
-    return { ...DEFAULT_SETTINGS }
+    return { ...DEFAULT_SETTINGS, sidebarOpen: defaultSidebarOpen() }
   }
 }
 

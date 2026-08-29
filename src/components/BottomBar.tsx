@@ -70,7 +70,7 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
 
   return (
     <div className="bar">
-      <div className="bar__group">
+      <div className="bar__group bar__phone-hide">
         <button className="bar__btn" onClick={cycleFontSize} title="Cycle text size">
           {settings.fontSize}px
         </button>
@@ -119,27 +119,31 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
         </button>
         <Separator />
 
-        <button
-          className="bar__btn"
-          aria-pressed={settings.focusScope !== 'off'}
-          onClick={() =>
-            updateSettings({ focusScope: settings.focusScope === 'off' ? 'sentence' : 'off' })
-          }
-          title="Dim everything but the current sentence"
-        >
-          Focus
-        </button>
-        <Separator />
+        {/* Both stay reachable from the command palette on a phone, where the
+            bar has room for only what is used while actually writing. */}
+        <span className="bar__phone-hide">
+          <button
+            className="bar__btn"
+            aria-pressed={settings.focusScope !== 'off'}
+            onClick={() =>
+              updateSettings({ focusScope: settings.focusScope === 'off' ? 'sentence' : 'off' })
+            }
+            title="Dim everything but the current sentence"
+          >
+            Focus
+          </button>
+          <Separator />
 
-        <button
-          className="bar__btn"
-          aria-pressed={!settings.hardcore}
-          onClick={() => updateSettings({ hardcore: !settings.hardcore })}
-          title="When off, the text can only grow, with no deleting"
-        >
-          Backspace is {settings.hardcore ? 'Off' : 'On'}
-        </button>
-        <Separator />
+          <button
+            className="bar__btn"
+            aria-pressed={!settings.hardcore}
+            onClick={() => updateSettings({ hardcore: !settings.hardcore })}
+            title="When off, the text can only grow, with no deleting"
+          >
+            Backspace is {settings.hardcore ? 'Off' : 'On'}
+          </button>
+          <Separator />
+        </span>
 
         <span className="bar__optional">
           <button className="bar__btn" onClick={toggleFullscreen} title="Toggle fullscreen">
@@ -159,7 +163,8 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
         <Separator />
 
         <button className="bar__btn" onClick={onOpenPalette} title="Commands (⌘K)">
-          ⌘K
+          <span className="bar__phone-hide">⌘K</span>
+          <span className="bar__phone-only">Menu</span>
         </button>
         <Separator />
 

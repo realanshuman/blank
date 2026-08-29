@@ -17,6 +17,10 @@
 
   --blank-sidebar-width: 260px;
   --blank-bar-height: 44px;
+
+  /* Set from JS on devices whose on-screen keyboard shrinks the visual
+     viewport, so the bottom bar rides above the keyboard instead of under it. */
+  --blank-keyboard-inset: 0px;
 }
 
 :root[data-theme='light'] {
@@ -74,9 +78,19 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* dvh, not vh: mobile browser chrome hides and shows, and vh does not
+     account for it, leaving the bottom bar under the address bar. */
+  height: 100dvh;
   margin: 0;
   padding: 0;
+}
+
+@supports not (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
 }
 
 body {
@@ -86,6 +100,10 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   transition: background-color 200ms ease, color 200ms ease;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Stop iOS rubber-banding the whole page behind the editor. */
+  overscroll-behavior: none;
 }
 
 button {
@@ -105,6 +123,12 @@ button {
   display: flex;
   height: 100%;
   width: 100%;
+  /* The sidebar becomes an off-canvas panel on phones; without this its
+     translated position adds hundreds of pixels of sideways scroll. */
+  overflow-x: hidden;
+  /* Respect the notch and the home indicator. */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 .app__main {
@@ -149,11 +173,14 @@ button {
 
 .bar {
   flex: 0 0 auto;
-  height: var(--blank-bar-height);
+  min-height: var(--blank-bar-height);
+  margin-bottom: var(--blank-keyboard-inset);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 22px;
+  /* Bottom padding clears the home indicator; it must be in the shorthand or a
+     later `padding` declaration silently wipes it. */
+  padding: 0 22px env(safe-area-inset-bottom);
   font-size: var(--blank-ui-size);
   color: var(--blank-faint);
   user-select: none;
@@ -198,7 +225,7 @@ button {
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 860px) and (min-width: 721px) {
   .bar__stats {
     display: none;
   }
@@ -247,6 +274,10 @@ button {
 /* ---------------------------------------------------------------------------
    History sidebar
    --------------------------------------------------------------------------- */
+
+.sidebar__backdrop {
+  display: none;
+}
 
 .sidebar {
   flex: 0 0 var(--blank-sidebar-width);
@@ -503,18 +534,157 @@ button {
   opacity: 0.92;
 }
 
+/* ---------------------------------------------------------------------------
+   Phones and small tablets.
+
+   The desktop layout puts a fixed 260px sidebar beside the canvas. At phone
+   width that leaves no room to write, and as an absolutely positioned panel it
+   covered the canvas and swallowed taps. It becomes a proper off-canvas sheet
+   with a backdrop instead.
+   --------------------------------------------------------------------------- */
+
 @media (max-width: 720px) {
   .sidebar {
-    position: absolute;
+    position: fixed;
     right: 0;
     top: 0;
     bottom: 0;
-    z-index: 20;
-    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.14);
+    z-index: 30;
+    width: min(86vw, 340px);
+    flex-basis: auto;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.22);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: sheet-in 180ms ease-out;
   }
-  .bar {
+
+  @keyframes sheet-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+
+  .sidebar__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 29;
+    background: rgba(0, 0, 0, 0.32);
+    border: 0;
+    display: block;
+    animation: fade-in 180ms ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* Comfortable one-handed targets. */
+  .sidebar__search {
+    font-size: 16px; /* under 16px iOS zooms the whole page on focus */
+    min-height: 44px;
+  }
+  .entry {
+    padding: 12px 16px;
+  }
+  .entry__title {
+    font-size: 15px;
+  }
+  .entry__meta,
+  .entry__snippet {
     font-size: 12px;
-    padding: 0 12px;
+  }
+
+  .canvas {
+    padding-top: 20px;
+  }
+  .canvas .cm-scroller {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .bar {
+    font-size: 14px;
+    padding: 0 10px env(safe-area-inset-bottom);
+    gap: 6px;
+    /* Always legible on a phone: there is no pointer to reveal it on hover. */
+    opacity: 1;
+  }
+
+  .bar__btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+  }
+
+  /* The separators are desktop density; at touch size they only add clutter. */
+  .bar__sep {
+    display: none;
+  }
+}
+
+/*
+ * The bar carries fifteen controls on desktop. A phone has room only for what
+ * is used while actually writing; the rest stay in the command palette.
+ *
+ * The wrapper spans must not create a box of their own when visible, hence
+ * `display: contents`. Selector specificity is matched deliberately below so
+ * the media queries can override that rather than losing to it.
+ */
+span.bar__phone-hide {
+  display: contents;
+}
+
+@media (max-width: 720px) {
+  span.bar__phone-hide,
+  .bar__group.bar__phone-hide {
+    display: none;
+  }
+}
+
+@media (min-width: 721px) {
+  span.bar__phone-only {
+    display: none;
+  }
+}
+
+/*
+ * Any touch device, not just phones. A tablet is finger-driven at 768px or
+ * 1024px just as much as a phone is at 390px, so the sizing follows the input
+ * method rather than the width.
+ */
+@media (hover: none) {
+  .bar__btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+  }
+
+  .sidebar__search {
+    font-size: 16px; /* below 16px iOS zooms the page on focus */
+    min-height: 44px;
+  }
+
+  .entry {
+    padding: 12px 14px;
+  }
+
+  /* Hover styling sticks after a tap, so express the feedback on :active. */
+  .bar__btn:hover {
+    color: var(--blank-faint);
+    background: none;
+  }
+  .bar__btn:active {
+    color: var(--blank-fg);
+    background: var(--blank-panel-hover);
+  }
+
+  /* Nothing reveals the bar on hover, so it must always be legible. */
+  .bar {
+    opacity: 1;
   }
 }
 
