@@ -81,14 +81,9 @@ function EntryRow({
         event.preventDefault()
         onTogglePin()
       }}
-      title="Click to open · right-click to pin"
+      title="Click to open · right-click to pin or unpin"
     >
       <span className="entry__title">
-        {meta.pinned && (
-          <span className="entry__flag" aria-label="Pinned">
-            ▲
-          </span>
-        )}
         {meta.favorite && (
           <span className="entry__flag" aria-label="Favourite">
             ★
@@ -137,7 +132,11 @@ export function HistorySidebar() {
   const togglePinned = useStore((state) => state.togglePinned)
 
   const searching = query.trim().length > 0
-  const groups = useMemo(() => (searching ? [] : groupByDay(entries)), [entries, searching])
+  const pinned = useMemo(() => entries.filter((entry) => entry.pinned), [entries])
+  const groups = useMemo(
+    () => (searching ? [] : groupByDay(entries.filter((entry) => !entry.pinned))),
+    [entries, searching],
+  )
 
   return (
     <aside className="sidebar">
@@ -175,7 +174,22 @@ export function HistorySidebar() {
         ) : entries.length === 0 ? (
           <div className="sidebar__empty">Nothing written yet. The page is yours.</div>
         ) : (
-          groups.map((group) => (
+          <>
+          {pinned.length > 0 && (
+            <div>
+              <div className="daygroup">Pinned</div>
+              {pinned.map((meta) => (
+                <EntryRow
+                  key={meta.id}
+                  meta={meta}
+                  isCurrent={meta.id === currentId}
+                  onOpen={() => void openEntry(meta.id)}
+                  onTogglePin={() => void togglePinned(meta.id)}
+                />
+              ))}
+            </div>
+          )}
+          {groups.map((group) => (
             <div key={group.label}>
               <div className="daygroup">{group.label}</div>
               {group.entries.map((meta) => (
@@ -188,7 +202,8 @@ export function HistorySidebar() {
                 />
               ))}
             </div>
-          ))
+          ))}
+          </>
         )}
       </div>
     </aside>

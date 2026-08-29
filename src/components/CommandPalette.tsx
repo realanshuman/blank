@@ -17,6 +17,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const settings = useStore((state) => state.settings)
   const snapshots = useStore((state) => state.snapshots)
   const canChooseFolder = useStore((state) => state.canChooseFolder)
+  // undefined = the current entry is not in the list (still blank), so the
+  // pin command is withheld rather than pinning an invisible file.
+  const currentPinned = useStore((state) => {
+    const found = state.entries.find((entry) => entry.id === state.currentId)
+    return found ? found.pinned : undefined
+  })
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -54,6 +60,19 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             },
           ]
         : []),
+      ...(currentPinned === undefined
+        ? []
+        : [
+            {
+              id: 'pin',
+              label: currentPinned ? 'Unpin this entry' : 'Pin this entry to the top',
+              section: 'Entry',
+              run: () => {
+                const id = useStore.getState().currentId
+                if (id) void store.togglePinned(id)
+              },
+            },
+          ]),
       ...(['claude', 'chatgpt'] as const).map((target) => ({
         id: `reflect-${target}`,
         label: target === 'claude' ? 'Reflect on this entry with Claude' : 'Reflect on this entry with ChatGPT',
@@ -142,7 +161,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     ]
 
     return list
-  }, [settings, snapshots, canChooseFolder])
+  }, [settings, snapshots, canChooseFolder, currentPinned])
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
