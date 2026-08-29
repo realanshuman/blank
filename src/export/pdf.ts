@@ -136,7 +136,12 @@ class Layout {
 
     for (const line of lines) {
       this.ensureRoom(lineHeight)
-      this.doc.text(line, MARGIN.left + indent, this.y)
+      // baseline: 'top' anchors the glyphs below the cursor. jsPDF's default
+      // is the baseline, which let the first line after a drawn rule climb
+      // back up into the gap: ~8mm of air above the rule, ~1mm below it.
+      // With the cursor meaning "top", the spacing constants mean what they
+      // say on both sides of every rule.
+      this.doc.text(line, MARGIN.left + indent, this.y, { baseline: 'top' })
       this.y += lineHeight
     }
 
@@ -144,12 +149,12 @@ class Layout {
   }
 
   rule(): void {
-    this.ensureRoom(6)
-    this.y += 2
+    this.ensureRoom(8)
+    this.y += 3
     this.doc.setDrawColor(200)
     this.doc.setLineWidth(0.2)
     this.doc.line(MARGIN.left, this.y, PAGE.width - MARGIN.right, this.y)
-    this.y += 4
+    this.y += 3.5
   }
 
   /** A quoted block gets a rule down its left edge, as it does on screen. */
@@ -165,8 +170,12 @@ class Layout {
     })
     this.doc.setDrawColor(190)
     this.doc.setLineWidth(0.5)
-    // Only draw the rule when the quote did not straddle a page break.
-    if (this.y > top) this.doc.line(MARGIN.left + 1.5, top - 3, MARGIN.left + 1.5, this.y - 4)
+    // Span from the quote's first line to its last, allowing for the block's
+    // own before/after margins and the leading below the final line. Only
+    // drawn when the quote did not straddle a page break.
+    const start = top + 1.5
+    const end = this.y - 5
+    if (end > start) this.doc.line(MARGIN.left + 1.5, start, MARGIN.left + 1.5, end)
   }
 }
 
