@@ -306,6 +306,89 @@
         color: var(--muted);
       }
 
+      /* numbered install walkthrough */
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: 1.15rem;
+        margin-top: 1.5rem;
+        counter-reset: step;
+      }
+      .step {
+        background: var(--page);
+        border: 1px solid var(--rule);
+        border-radius: 11px;
+        padding: 1.3rem;
+        position: relative;
+letter-spacing: 0;
+      }
+      .step::before {
+        counter-increment: step;
+        content: counter(step);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.6rem;
+        height: 1.6rem;
+        border-radius: 50%;
+        background: var(--ink);
+        color: var(--ground);
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 0.85rem;
+      }
+      .step h4 {
+        margin: 0 0 0.35rem;
+        font-size: 0.93rem;
+        font-weight: 600;
+      }
+      .step p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .step p b { color: var(--ink); font-weight: 600; }
+
+      /* mockups of the two dialogs people actually see */
+      .shot {
+        margin-top: 0.95rem;
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+        background: var(--ground);
+        padding: 0.8rem;
+        font-size: 0.74rem;
+        line-height: 1.45;
+      }
+      .shot-title { font-weight: 600; color: var(--ink); margin-bottom: 0.25rem; }
+      .shot-body { color: var(--muted); }
+      .shot-row {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.65rem;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      .fake-btn {
+        padding: 0.22rem 0.6rem;
+        border-radius: 5px;
+        border: 1px solid var(--rule);
+        background: var(--page);
+        color: var(--muted);
+        font-size: 0.72rem;
+        white-space: nowrap;
+      }
+      .fake-btn.go { background: #2b6cb0; border-color: #2b6cb0; color: #fff; font-weight: 600; }
+      .fake-btn.danger { color: var(--faint); }
+      .settings-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        margin-top: 0.55rem;
+        flex-wrap: wrap;
+      }
+
       .notice {
         margin-top: 1.5rem;
         padding: 1rem 1.15rem;
@@ -561,12 +644,61 @@
           </article>
         </div>
 
+        <h3 style="margin:3rem 0 0.4rem;font-size:1.05rem">Installing on macOS</h3>
+        <p style="margin:0;color:var(--muted);font-size:0.9rem;max-width:34rem">
+          Blank is not code-signed yet, so macOS blocks the first launch. Nothing is
+          wrong with the app — here is the whole path through it, once.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <h4>Install it</h4>
+            <p>Open the downloaded <code>.dmg</code> and drag <b>Blank</b> into your
+              Applications folder. Then open it.</p>
+          </div>
+
+          <div class="step">
+            <h4>Click Done</h4>
+            <p>macOS says it “could not verify” the app. Click <b>Done</b> —
+              <b>not</b> Move to Bin, which deletes it.</p>
+            <div class="shot">
+              <div class="shot-title">“Blank” Not Opened</div>
+              <div class="shot-body">Apple could not verify “Blank” is free of malware…</div>
+              <div class="shot-row">
+                <span class="fake-btn go">Done</span>
+                <span class="fake-btn danger">Move to Bin</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <h4>Allow it once</h4>
+            <p>Open <b>System&nbsp;Settings → Privacy&nbsp;&amp; Security</b>, scroll down
+              to <b>Security</b>, and click <b>Open&nbsp;Anyway</b>.</p>
+            <div class="shot">
+              <div class="shot-title">Security</div>
+              <div class="settings-row">
+                <span class="shot-body">“Blank” was blocked to protect your Mac.</span>
+                <span class="fake-btn go">Open Anyway</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="step">
+            <h4>Start writing</h4>
+            <p>Authenticate, click <b>Open</b>, and choose a folder for your writing.
+              It opens normally from now on.</p>
+          </div>
+        </div>
+
         <div class="notice">
-          <strong>First launch is blocked — this is expected.</strong> These builds are not
-          code-signed yet, so macOS cannot verify the publisher. On macOS, click
-          <b>Done</b> (never “Move to Bin”), then open
-          <b>System&nbsp;Settings → Privacy&nbsp;&amp; Security</b>, scroll to Security, and
-          click <b>Open&nbsp;Anyway</b> next to Blank. Once only. On Windows, click
+          <strong>On macOS 15 and later, right-click → Open no longer works.</strong>
+          Apple removed that shortcut, which is why the dialog offers only Done and Move
+          to Bin. The Privacy &amp; Security route above is the current one. From a
+          terminal the equivalent is
+          <code>xattr -dr com.apple.quarantine /Applications/Blank.app</code>.
+          <br /><br />
+          <strong>On Windows,</strong> SmartScreen shows a similar warning — click
           <b>More info → Run anyway</b>.
         </div>
       </section>

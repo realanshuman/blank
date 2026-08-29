@@ -43,16 +43,26 @@ test.describe('landing page', () => {
     }
   })
 
-  test('explains how to get past the first-launch block', async ({ page }) => {
+  test('walks through the macOS first-launch block', async ({ page }) => {
     await page.goto('/')
-    const notice = page.locator('.notice')
-    // Without this the first launch looks like the app is broken. It must name
-    // the current route: Apple removed right-click -> Open in macOS 15.
-    await expect(notice).toContainText('Privacy')
-    await expect(notice).toContainText('Open Anyway')
-    await expect(notice, 'must not resurrect the obsolete advice').not.toContainText(
-      'right-click',
-    )
+    const steps = page.locator('.steps .step')
+    await expect(steps).toHaveCount(4)
+
+    const text = (await steps.allTextContents()).join(' ')
+    // The route that actually works on a current Mac.
+    expect(text).toContain('Privacy')
+    expect(text).toContain('Open Anyway')
+    // "Move to Bin" deletes the app, so the page must steer away from it.
+    expect(text).toContain('Move to Bin')
+  })
+
+  test('says plainly that right-click no longer works', async ({ page }) => {
+    await page.goto('/')
+    // Mentioning right-click is fine — recommending it is not. Apple removed
+    // that bypass in macOS 15, and the old advice sends people to the button
+    // that deletes the app.
+    const notice = await page.locator('.notice').innerText()
+    expect(notice).toMatch(/right-click[^.]*no longer works/i)
   })
 
   test('the primary call to action opens the app', async ({ page }) => {
