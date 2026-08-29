@@ -172,6 +172,9 @@ in Obsidian and your entries are just files.
 In a browser the identical code falls back to the browser's own storage, so
 `npm run dev` still works on any machine without the native toolchain.
 
+Note that the desktop window opens `app.html`, not `index.html` — `index.html`
+is the marketing landing page, which only makes sense on the web.
+
 ## Releasing installers automatically
 
 `.github/workflows/release.yml` builds macOS, Windows and Linux installers in
