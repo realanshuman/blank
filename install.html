@@ -12,18 +12,20 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23fafaf9'/><rect x='9' y='9' width='2' height='14' fill='%231a1a1a'/><rect x='14' y='9' width='10' height='2' fill='%23dedede'/><rect x='14' y='14' width='7' height='2' fill='%23dedede'/></svg>" />
     <link rel="stylesheet" href="/src/styles/site.css" />
     <style>
-      .page-head { padding: 4.5rem 0 2.5rem; }
+      .page-head { padding: clamp(2.5rem, 1rem + 6vw, 4.5rem) 0 2.5rem; }
       .crumb {
-        font-size: 0.85rem;
+        font-size: var(--t-small);
         color: var(--faint);
         margin: 0 0 1.25rem;
       }
       .crumb a { color: var(--muted); text-decoration: none; }
       .crumb a:hover { color: var(--ink); }
       .page-head h1 {
-        font-size: clamp(2.1rem, 5vw, 3rem);
+        font-size: clamp(1.95rem, 1.3rem + 3.2vw, 3rem);
         margin-bottom: 0.75rem;
+        text-wrap: balance;
       }
+      .page-head .lede { text-wrap: pretty; }
       section:first-of-type { border-top: none; }
       .platform-nav {
         display: flex;
@@ -32,8 +34,8 @@
         margin-top: 1.75rem;
       }
       .platform-nav a {
-        font-size: 0.85rem;
-        padding: 0.4rem 0.9rem;
+        font-size: var(--t-small);
+        padding: 0.5rem 0.95rem;
         border: 1px solid var(--rule);
         border-radius: 999px;
         background: var(--page);
@@ -43,7 +45,7 @@
       .platform-nav a:hover { color: var(--ink); border-color: var(--faint); }
       .faq { margin-top: 1.25rem; }
       .faq h4 { margin: 1.5rem 0 0.35rem; font-size: 0.95rem; }
-      .faq p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.65; }
+      .faq p { margin: 0; color: var(--muted); font-size: var(--t-body); line-height: 1.65; }
       .faq code {
         font-family: var(--mono);
         font-size: 0.85em;
@@ -63,7 +65,7 @@
         <h1>Installing Blank</h1>
         <p class="lede" style="margin-left:0">
           Blank is not code-signed yet, so macOS and Windows block the first launch.
-          Nothing is wrong with the app — here is the whole path through it, once.
+          Nothing is wrong with the app. Here is the whole path through it, once.
         </p>
         <div class="platform-nav">
           <a href="#macos">macOS</a>
@@ -92,7 +94,7 @@
           <div class="step">
             <h4>Click Done</h4>
             <p>
-              macOS says it “could not verify” the app. Click <b>Done</b> — <b>not</b>
+              macOS says it “could not verify” the app. Click <b>Done</b>, and <b>not</b>
               Move to Bin, which deletes it.
             </p>
             <div class="shot">
@@ -141,8 +143,8 @@
       <section class="wrap" id="windows">
         <h2 class="sec">Windows</h2>
         <p class="sec-sub">
-          Take the <code>.msi</code> installer, or the <code>.exe</code> setup beside it —
-          either works.
+          Take the <code>.msi</code> installer, or the <code>.exe</code> setup beside it.
+          Either one works.
         </p>
 
         <div class="steps">
@@ -153,7 +155,7 @@
           <div class="step">
             <h4>Click More info</h4>
             <p>
-              SmartScreen says it “protected your PC”. Click <b>More info</b> — the link
+              SmartScreen says it “protected your PC”. Click <b>More info</b>. The link
               is easy to miss, and there is no other way forward.
             </p>
             <div class="shot">
@@ -178,7 +180,7 @@
 
       <section class="wrap" id="linux">
         <h2 class="sec">Linux</h2>
-        <p class="sec-sub">No security prompt here — just make it executable.</p>
+        <p class="sec-sub">No security prompt here, just make it executable.</p>
 
         <div class="steps">
           <div class="step">
@@ -191,7 +193,7 @@
           <div class="step">
             <h4>Debian / Ubuntu</h4>
             <p>
-              <code>sudo apt install ./Blank_*.deb</code> — installs it like any other
+              <code>sudo apt install ./Blank_*.deb</code> installs it like any other
               package.
             </p>
           </div>
@@ -205,7 +207,7 @@
           <h4>Why is it not signed?</h4>
           <p>
             Signing requires a paid Apple Developer account, and Windows code signing
-            costs more again. Neither changes the app — only whether your system
+            costs more again. Neither changes the app, only whether your system
             recognises the publisher. It may be signed later.
           </p>
 
@@ -224,14 +226,14 @@
 
           <h4>Do I have to install anything at all?</h4>
           <p>
-            No. <a href="/app">Blank runs in your browser</a> with the same features —
-            entries are saved in that browser rather than as files on disk.
+            No. <a href="/app">Blank runs in your browser</a> with the same features.
+            Entries are saved in that browser rather than as files on disk.
           </p>
 
           <h4>How do I uninstall it?</h4>
           <p>
             Drag Blank from Applications to the Bin on macOS, or use Add or remove
-            programs on Windows. Your writing folder is untouched — the files are yours.
+            programs on Windows. Your writing folder is untouched. The files are yours.
           </p>
         </div>
       </section>
@@ -246,7 +248,7 @@
     </main>
 
     <footer class="wrap">
-      <span>Blank — a canvas for writing.</span>
+      <span>Blank, a canvas for writing.</span>
       <span>
         <a href="/">Home</a> ·
         <a href="https://github.com/realanshuman/blank">GitHub</a> ·

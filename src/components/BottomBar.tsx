@@ -135,7 +135,7 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
           className="bar__btn"
           aria-pressed={!settings.hardcore}
           onClick={() => updateSettings({ hardcore: !settings.hardcore })}
-          title="When off, the text can only grow — no deleting"
+          title="When off, the text can only grow, with no deleting"
         >
           Backspace is {settings.hardcore ? 'Off' : 'On'}
         </button>

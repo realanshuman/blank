@@ -85,9 +85,9 @@ test.describe('hardcore mode', () => {
     await freshApp(page)
     await page.keyboard.type('This sentence must survive everything.')
 
-    await page.getByTitle('When off, the text can only grow — no deleting').click()
+    await page.getByTitle('When off, the text can only grow, with no deleting').click()
     await expect(
-      page.getByTitle('When off, the text can only grow — no deleting'),
+      page.getByTitle('When off, the text can only grow, with no deleting'),
     ).toHaveText('Backspace is Off')
 
     await page.locator('.cm-content').click()
@@ -114,7 +114,7 @@ test.describe('hardcore mode', () => {
   test('still allows typing forward', async ({ page }) => {
     await freshApp(page)
     await page.keyboard.type('Start.')
-    await page.getByTitle('When off, the text can only grow — no deleting').click()
+    await page.getByTitle('When off, the text can only grow, with no deleting').click()
     await page.locator('.cm-content').click()
     await page.keyboard.press('End')
     await page.keyboard.type(' And more.')
