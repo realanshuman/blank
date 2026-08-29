@@ -109,6 +109,44 @@ BLANK_CHROMIUM=/path/to/chrome npm run e2e
 
 ---
 
+## Getting the code
+
+```bash
+git clone https://github.com/realanshuman/blank.git
+cd blank
+git checkout claude/note-taking-app-local-jteptj
+npm install
+npm run dev
+```
+
+Or grab a zip without git: **Code → Download ZIP** on the branch page.
+
+## Deploying to Vercel
+
+The whole app is a static site — there is no server, no database and no API.
+Vercel serves it as-is, so you get the real working app at a URL, not just a
+marketing page.
+
+**From the dashboard:** New Project → import `realanshuman/blank` → set the
+branch to `claude/note-taking-app-local-jteptj` → Deploy. `vercel.json` already
+pins the framework, build command, output directory and cache headers, so there
+is nothing to configure.
+
+**From the CLI:**
+
+```bash
+npm i -g vercel
+vercel        # preview deploy
+vercel --prod # production
+```
+
+One thing to know about hosting it: entries are stored in each visitor's own
+browser, so everyone who opens the URL gets their own private, empty canvas.
+Nothing is shared and nothing reaches a server. That makes it a great way to let
+people try the app — and it is also why the URL is not a backup of your writing.
+
+---
+
 ## How it's built
 
 | Layer | Choice | Why |
