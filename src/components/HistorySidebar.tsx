@@ -111,8 +111,6 @@ function EntryRow({
         <span>{timeLabel(meta.updatedAt)}</span>
         <span>·</span>
         <span>{dateLabel(meta.updatedAt)}</span>
-        <span>·</span>
-        <span>{meta.wordCount.toLocaleString()}w</span>
       </span>
 
       {/* A search match shows the text around the match; otherwise the opening
