@@ -25,7 +25,7 @@ for (const [name, opts] of [
   if (errors.length) console.log(name, 'ERRORS:', errors)
   // The CTA must actually reach the app.
   if (name === 'light') {
-    await page.getByRole('link', { name: 'Start writing' }).click()
+    await page.getByRole('link', { name: 'Try it in the browser' }).click()
     await page.waitForSelector('.cm-content', { timeout: 15000 })
     console.log('CTA -> app:', page.url().endsWith('/app') ? 'ok' : page.url())
   }
