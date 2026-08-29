@@ -70,10 +70,15 @@ describe('vercel.json', () => {
     }
   })
 
-  it('routes /app to the app page so the landing page does not swallow it', () => {
+  it('routes every page explicitly so none swallows another', () => {
     const rewrites = config['rewrites'] as Array<Record<string, string>>
-    const appRule = rewrites.find((rule) => rule['source'] === '/app')
-    expect(appRule?.['destination']).toBe('/app.html')
+    for (const [source, destination] of [
+      ['/app', '/app.html'],
+      ['/install', '/install.html'],
+    ]) {
+      const rule = rewrites.find((entry) => entry['source'] === source)
+      expect(rule?.['destination'], `missing rewrite for ${source}`).toBe(destination)
+    }
   })
 
   it('builds the same way the repo does', () => {

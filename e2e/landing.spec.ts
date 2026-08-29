@@ -43,26 +43,19 @@ test.describe('landing page', () => {
     }
   })
 
-  test('walks through the macOS first-launch block', async ({ page }) => {
+  test('points at the install guide instead of explaining it inline', async ({ page }) => {
     await page.goto('/')
-    const steps = page.locator('.steps .step')
-    await expect(steps).toHaveCount(4)
-
-    const text = (await steps.allTextContents()).join(' ')
-    // The route that actually works on a current Mac.
-    expect(text).toContain('Privacy')
-    expect(text).toContain('Open Anyway')
-    // "Move to Bin" deletes the app, so the page must steer away from it.
-    expect(text).toContain('Move to Bin')
+    await expect(page.locator('.notice')).toContainText('not code-signed')
+    await page.getByRole('link', { name: /install guide/i }).first().click()
+    await expect(page).toHaveURL(/\/install/)
   })
 
-  test('says plainly that right-click no longer works', async ({ page }) => {
+  test('links the install guide from the footer', async ({ page }) => {
     await page.goto('/')
-    // Mentioning right-click is fine — recommending it is not. Apple removed
-    // that bypass in macOS 15, and the old advice sends people to the button
-    // that deletes the app.
-    const notice = await page.locator('.notice').innerText()
-    expect(notice).toMatch(/right-click[^.]*no longer works/i)
+    const link = page.locator('footer').getByRole('link', { name: 'Install guide' })
+    await expect(link).toBeVisible()
+    await link.click()
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Installing Blank')
   })
 
   test('the primary call to action opens the app', async ({ page }) => {
