@@ -151,6 +151,26 @@ test.describe('persistence', () => {
   })
 })
 
+test.describe('history rows', () => {
+  // Rows were once stripped back to a title and a time. Three lines is the
+  // design that was asked for: what it is, when it was, and how it opens.
+  test('show the title, time, date, word count and a preview', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Notes before the call\n\nThe pricing page buries the thing people actually buy.')
+    await page.waitForTimeout(900)
+
+    const row = page.locator('.entry').first()
+    await expect(row.locator('.entry__title')).toHaveText('Notes before the call')
+
+    // e.g. "9:14 AM · Aug 29 · 12w" — the separators are their own spans.
+    const meta = (await row.locator('.entry__meta').textContent()) ?? ''
+    expect(meta).toMatch(/\d{1,2}:\d{2}[^·]*·[A-Za-z]{3}\s\d{1,2}·\d+w/)
+
+    // The preview is there without searching for anything.
+    await expect(row.locator('.entry__snippet')).toContainText('The pricing page buries')
+  })
+})
+
 test.describe('search', () => {
   test('finds an entry by its body and highlights the match', async ({ page }) => {
     await freshApp(page)

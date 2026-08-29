@@ -26,6 +26,21 @@ function timeLabel(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 
+/**
+ * "Aug 29", with the year only when it is not this one. Always the absolute
+ * date rather than reusing `dayLabel`, so a row sitting under the "Today"
+ * header adds something instead of repeating it.
+ */
+function dateLabel(iso: string, now = new Date()): string {
+  const date = new Date(iso)
+  const sameYear = date.getFullYear() === now.getFullYear()
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
+}
+
 interface Group {
   label: string
   entries: EntryMeta[]
@@ -94,14 +109,20 @@ function EntryRow({
 
       <span className="entry__meta">
         <span>{timeLabel(meta.updatedAt)}</span>
+        <span>·</span>
+        <span>{dateLabel(meta.updatedAt)}</span>
+        <span>·</span>
+        <span>{meta.wordCount.toLocaleString()}w</span>
       </span>
 
-      {/* The preview earns its space only when it carries a search match;
-          otherwise rows stay two quiet lines, like the original. */}
-      {hit && (
+      {/* A search match shows the text around the match; otherwise the opening
+          of the entry, which is what tells one morning's page from another. */}
+      {hit ? (
         <span className="entry__snippet">
           <Highlighted hit={hit} />
         </span>
+      ) : (
+        meta.excerpt && <span className="entry__snippet">{meta.excerpt}</span>
       )}
 
       {meta.tags.length > 0 && (

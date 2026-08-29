@@ -363,13 +363,8 @@ button {
   display: block;
   width: 100%;
   text-align: left;
-  /* Two quiet lines per row. A rule under every row read as a table; the
-     date group headers already provide the structure. */
-  padding: 7px 14px;
-  border-bottom: 0;
-  border-radius: 6px;
-  margin: 0 4px;
-  width: calc(100% - 8px);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--blank-rule);
   transition: background-color 120ms ease;
 }
 
@@ -399,7 +394,7 @@ button {
 }
 
 .entry__meta {
-  margin-top: 1px;
+  margin-top: 3px;
   font-size: 11px;
   color: var(--blank-faint);
   display: flex;
