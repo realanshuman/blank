@@ -9,7 +9,7 @@
   --blank-font: 'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --blank-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --blank-font-size: 18px;
-  --blank-line-height: 1.7;
+  --blank-line-height: 1.6;
   --blank-measure: 700px;
   --blank-scroll-padding: 45vh;
 
@@ -27,11 +27,11 @@
 
 :root[data-theme='light'] {
   --blank-bg: #ffffff;
-  --blank-fg: #1a1a1a;
+  --blank-fg: #141414;
   --blank-muted: #6b6b6b;
   --blank-faint: #b8b8b8;
   --blank-dimmed: #c9c9c9;
-  --blank-caret: #1a1a1a;
+  --blank-caret: #141414;
   --blank-accent: #2b6cb0;
   --blank-selection: #d6e4f7;
   --blank-code-bg: #f2f2f2;
@@ -103,12 +103,23 @@ body {
   color: var(--blank-fg);
   font-family: var(--blank-ui-font);
   overflow: hidden;
-  -webkit-font-smoothing: antialiased;
   transition: background-color 200ms ease, color 200ms ease;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   /* Stop iOS rubber-banding the whole page behind the editor. */
   overscroll-behavior: none;
+}
+
+/*
+ * Font smoothing is split by theme on purpose. macOS default (subpixel)
+ * rendering gives dark-on-light text its full weight — the native reference
+ * app reads heavier for exactly this reason — so light themes keep it.
+ * Light-on-dark text blooms with subpixel rendering, so dark switches to
+ * grayscale antialiasing, which is why this rule ever existed.
+ */
+:root[data-theme='dark'] body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button {

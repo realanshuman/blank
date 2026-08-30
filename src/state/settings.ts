@@ -54,7 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
   typewriter: false,
   hardcore: false,
   measure: 700,
-  lineHeight: 1.7,
+  lineHeight: 1.6,
   timerMinutes: 15,
   goalWords: 0,
   sidebarOpen: true,
@@ -90,6 +90,17 @@ function clamp(value: number, min: number, max: number, fallback: number): numbe
 }
 
 /**
+ * The default leading tightened from 1.7 to 1.6, and settings persist
+ * wholesale, so every earlier install has the literal 1.7 stored without ever
+ * having chosen it — no UI edits this field. Treat that one value as "the old
+ * default" and move it forward; anything else was set by hand and is kept.
+ */
+function coerceLineHeight(value: unknown, fallback: number): number {
+  if (value === 1.7) return fallback
+  return clamp(value as number, 1.2, 2.6, fallback)
+}
+
+/**
  * Settings come from disk and may be stale, hand-edited, or from a newer
  * version. Validate every field rather than trusting the blob, so one bad
  * value can't leave the app unusable with no way to fix it from the UI.
@@ -108,7 +119,7 @@ export function coerceSettings(raw: unknown): Settings {
     typewriter: typeof input.typewriter === 'boolean' ? input.typewriter : d.typewriter,
     hardcore: typeof input.hardcore === 'boolean' ? input.hardcore : d.hardcore,
     measure: clamp(input.measure as number, 380, 1400, d.measure),
-    lineHeight: clamp(input.lineHeight as number, 1.2, 2.6, d.lineHeight),
+    lineHeight: coerceLineHeight(input.lineHeight, d.lineHeight),
     timerMinutes: clamp(input.timerMinutes as number, 1, 180, d.timerMinutes),
     goalWords: clamp(input.goalWords as number, 0, 100_000, d.goalWords),
     sidebarOpen: typeof input.sidebarOpen === 'boolean' ? input.sidebarOpen : d.sidebarOpen,
