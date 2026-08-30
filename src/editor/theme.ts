@@ -37,7 +37,22 @@ export const editorTheme = EditorView.theme({
     borderLeftWidth: '2px',
     borderLeftColor: 'var(--blank-caret)',
   },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
+  /*
+   * Selection has to be written at the base theme's own selector shape.
+   * CodeMirror ships `&light.cm-focused > .cm-scroller > .cm-selectionLayer
+   * .cm-selectionBackground` (five classes) and nothing here passes
+   * `{ dark: true }`, so the editor is always `cm-light` and that rule paints
+   * its lavender #d7d4f0 in every theme unless matched selector for selector.
+   * A shorter selector silently loses the cascade, which is what left dark
+   * mode with light text on a light highlight.
+   *
+   * Native ::selection is not worth styling here: drawSelection() hides it
+   * with `background-color: transparent !important` at Prec.highest.
+   */
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
+    backgroundColor: 'var(--blank-selection)',
+  },
+  '.cm-selectionBackground': {
     backgroundColor: 'var(--blank-selection)',
   },
   '.cm-placeholder': {

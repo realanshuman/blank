@@ -151,6 +151,37 @@ test.describe('persistence', () => {
   })
 })
 
+test.describe('selection', () => {
+  /** The colour actually painted behind selected text, with the editor focused. */
+  async function selectionColour(page: Page): Promise<string> {
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('Control+a')
+    await page.waitForTimeout(150)
+    return page
+      .locator('.cm-selectionBackground')
+      .first()
+      .evaluate((node) => getComputedStyle(node).backgroundColor)
+  }
+
+  test('uses the theme colour, not CodeMirror’s built-in lavender', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Text that is about to be selected.')
+
+    // CodeMirror's own focused-selection rule is five classes deep, so a
+    // shorter override loses the cascade and this comes back #d7d4f0 — light
+    // text on a light highlight once the dark theme is on.
+    const lavender = 'rgb(215, 212, 240)'
+
+    expect(await selectionColour(page)).toBe('rgb(184, 213, 245)')
+    expect(await selectionColour(page)).not.toBe(lavender)
+
+    // light -> sepia -> dark
+    await page.getByTitle('Light, sepia, dark').click()
+    await page.getByTitle('Light, sepia, dark').click()
+    expect(await selectionColour(page)).toBe('rgb(59, 90, 127)')
+  })
+})
+
 test.describe('history rows', () => {
   // Rows were once stripped back to a title and a time. Three lines is the
   // design that was asked for: what it is, when it was, and how it opens.

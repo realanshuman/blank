@@ -33,7 +33,7 @@
   --blank-dimmed: #c9c9c9;
   --blank-caret: #141414;
   --blank-accent: #2b6cb0;
-  --blank-selection: #d6e4f7;
+  --blank-selection: #b8d5f5;
   --blank-code-bg: #f2f2f2;
   --blank-rule: #ebebeb;
   --blank-panel: #fafafa;
@@ -50,7 +50,7 @@
   --blank-dimmed: #47474f;
   --blank-caret: #e6e6e6;
   --blank-accent: #7aa7d9;
-  --blank-selection: #2f3d52;
+  --blank-selection: #3b5a7f;
   --blank-code-bg: #23232a;
   --blank-rule: #26262c;
   --blank-panel: #1b1b20;
@@ -67,7 +67,7 @@
   --blank-dimmed: #c8bca8;
   --blank-caret: #3a3128;
   --blank-accent: #9a5b2c;
-  --blank-selection: #e6d8be;
+  --blank-selection: #e0cfa8;
   --blank-code-bg: #ece3d1;
   --blank-rule: #e2d8c4;
   --blank-panel: #f0e9da;
@@ -120,6 +120,16 @@ body {
 :root[data-theme='dark'] body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * Selection outside the editor: the sidebar, the bar, the search field. The
+ * canvas draws its own (CodeMirror replaces native selection), so this is what
+ * keeps the two looking like the same app.
+ */
+::selection {
+  background: var(--blank-selection);
+  color: var(--blank-fg);
 }
 
 button {
@@ -482,7 +492,7 @@ button.sidebar__path--link:focus-visible .sidebar__path-arrow {
 
 .entry__snippet mark {
   background: var(--blank-selection);
-  color: inherit;
+  color: var(--blank-fg);
   border-radius: 2px;
 }
 
