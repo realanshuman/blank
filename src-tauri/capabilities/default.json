@@ -13,6 +13,7 @@
     "core:window:allow-minimize",
     "core:webview:allow-print",
     "opener:allow-open-url",
+    "opener:allow-reveal-item-in-dir",
     "os:default",
     "store:default",
     "dialog:allow-open",

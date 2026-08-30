@@ -174,6 +174,60 @@ test.describe('history rows', () => {
   })
 })
 
+test.describe('row actions', () => {
+  test('stay hidden until the row is hovered', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('An entry about glaciers')
+    await page.waitForTimeout(900)
+
+    const row = page.locator('.entry').first()
+    await expect(row.locator('.entry__actions')).toBeHidden()
+
+    await row.hover()
+    await expect(row.locator('.entry__actions')).toBeVisible()
+    await expect(row.getByTitle('Download as PDF')).toBeVisible()
+    await expect(row.getByTitle('Delete this entry')).toBeVisible()
+  })
+
+  test('the download button saves the entry as a PDF', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Field notes\n\nThe river moved twelve feet since March.')
+    await page.waitForTimeout(900)
+
+    const row = page.locator('.entry').first()
+    await row.hover()
+    const pending = page.waitForEvent('download')
+    await row.getByTitle('Download as PDF').click()
+    const download = await pending
+    expect(download.suggestedFilename()).toMatch(/field-notes\.pdf$/)
+  })
+
+  test('delete takes a second, deliberate click', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Keep this one')
+    await page.getByTitle('Start a new entry').click()
+    await page.locator('.cm-content').click()
+    await page.keyboard.type('Delete this one')
+    await page.waitForTimeout(900)
+
+    await expect(page.locator('.entry')).toHaveCount(2)
+
+    const doomed = page.locator('.entry', { hasText: 'Delete this one' })
+    await doomed.hover()
+    await doomed.getByTitle('Delete this entry').click()
+
+    // Armed, not fired: the entry is still there and the trash asks first.
+    await expect(page.locator('.entry')).toHaveCount(2)
+    await expect(doomed.getByText('Sure?')).toBeVisible()
+
+    await doomed.getByText('Sure?').click()
+    await expect(page.locator('.entry')).toHaveCount(1)
+    await expect(page.locator('.sidebar')).not.toContainText('Delete this one')
+    // Deleting the open entry lands the canvas on the survivor.
+    await expect(page.locator('.cm-content')).toContainText('Keep this one')
+  })
+})
+
 test.describe('search', () => {
   test('finds an entry by its body and highlights the match', async ({ page }) => {
     await freshApp(page)

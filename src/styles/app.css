@@ -39,6 +39,7 @@
   --blank-panel: #fafafa;
   --blank-panel-hover: #f0f0f0;
   --blank-panel-active: #e9e9e9;
+  --blank-danger: #b13c2e;
 }
 
 :root[data-theme='dark'] {
@@ -55,6 +56,7 @@
   --blank-panel: #1b1b20;
   --blank-panel-hover: #23232a;
   --blank-panel-active: #2a2a32;
+  --blank-danger: #e0655a;
 }
 
 :root[data-theme='sepia'] {
@@ -71,6 +73,7 @@
   --blank-panel: #f0e9da;
   --blank-panel-hover: #e9e0ce;
   --blank-panel-active: #e2d8c4;
+  --blank-danger: #a63d2a;
 }
 
 * {
@@ -314,6 +317,40 @@ button {
   text-overflow: ellipsis;
 }
 
+/* On desktop the line that names the folder opens it. */
+button.sidebar__path--link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  text-align: left;
+  transition: color 120ms ease;
+}
+
+button.sidebar__path--link:hover,
+button.sidebar__path--link:focus-visible {
+  color: var(--blank-muted);
+}
+
+.sidebar__path-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__path-arrow {
+  flex: 0 0 auto;
+  font-size: 10px;
+  /* Present but quiet until the line is what the pointer is on. */
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+button.sidebar__path--link:hover .sidebar__path-arrow,
+button.sidebar__path--link:focus-visible .sidebar__path-arrow {
+  opacity: 1;
+}
+
 .sidebar__search {
   width: 100%;
   margin-top: 10px;
@@ -360,12 +397,22 @@ button {
 }
 
 .entry {
+  position: relative;
   display: block;
   width: 100%;
   text-align: left;
   padding: 10px 14px;
   border-bottom: 1px solid var(--blank-rule);
   transition: background-color 120ms ease;
+  /* The row was a <button> once; keep the same feel now that it is not. */
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.entry:focus-visible {
+  outline: 2px solid var(--blank-accent);
+  outline-offset: -2px;
 }
 
 .entry:hover {
@@ -425,6 +472,71 @@ button {
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 5px;
+}
+
+/*
+ * Per-row actions. They live over the title line and stay invisible until the
+ * row is hovered or focused, so the list reads as writing, not chrome. While
+ * they are up, the title's ellipsis pulls back from under them.
+ */
+.entry__actions {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(4px);
+  /* Delay the visibility flip on the way out so the fade is visible. */
+  transition: opacity 140ms ease, transform 140ms ease, visibility 0s linear 140ms;
+}
+
+.entry:hover .entry__actions,
+.entry:focus-within .entry__actions {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.entry__title {
+  transition: padding 140ms ease;
+}
+
+.entry:hover .entry__title,
+.entry:focus-within .entry__title {
+  padding-right: 54px;
+}
+
+.entry__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--blank-faint);
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.entry__action:hover,
+.entry__action:focus-visible {
+  color: var(--blank-fg);
+  background: var(--blank-panel-active);
+}
+
+.entry__action--confirm {
+  width: auto;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.entry__action--confirm,
+.entry__action--confirm:hover,
+.entry__action--confirm:focus-visible {
+  color: var(--blank-danger);
 }
 
 .tag {
@@ -672,6 +784,20 @@ span.bar__phone-hide {
 
   .entry {
     padding: 12px 14px;
+  }
+
+  /* No hover on touch: the open row carries its actions instead. */
+  .entry.is-current .entry__actions {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+  .entry.is-current .entry__title {
+    padding-right: 74px;
+  }
+  .entry__action {
+    width: 34px;
+    height: 34px;
   }
 
   /* Hover styling sticks after a tap, so express the feedback on :active. */

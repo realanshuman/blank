@@ -9,7 +9,7 @@ import {
 } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
 import { load, type Store } from '@tauri-apps/plugin-store'
-import { appDataDir, join } from '@tauri-apps/api/path'
+import { appDataDir, documentDir, join } from '@tauri-apps/api/path'
 import type { Snapshot, SnapshotMeta, StorageAdapter } from './types'
 
 const VAULT_KEY = 'vaultPath'
@@ -43,35 +43,43 @@ export class TauriStorage implements StorageAdapter {
     const saved = await this.store.get<string>(VAULT_KEY)
     if (saved && (await exists(saved))) {
       this.vault = saved
+    } else if (saved) {
+      // The folder was moved or deleted while we were away. Recreating it at
+      // the same path beats a dialog: the path was their choice, and a sync
+      // client may simply not have caught up yet.
+      this.vault = await this.ensureVault(saved)
     } else {
-      // First run, or the folder was moved or deleted while we were away.
-      this.vault = await this.promptForVault()
+      // First run. No dialog before the first word is ever typed: create the
+      // default and let "Change writing folder…" move it later.
+      this.vault = await this.ensureVault(await this.defaultVaultPath())
     }
 
     await mkdir(SNAPSHOT_DIR, { baseDir: BaseDirectory.AppData, recursive: true })
     await this.loadSnapshotIndex()
   }
 
-  /**
-   * Ask for a folder, defaulting to ~/Documents/Blank. Cancelling must not
-   * leave the app unusable, so we fall back to creating the default.
-   */
-  private async promptForVault(): Promise<string> {
-    const chosen = await open({
-      directory: true,
-      multiple: false,
-      title: 'Choose a folder for your writing',
-    })
-
-    if (typeof chosen === 'string') {
-      await this.store?.set(VAULT_KEY, chosen)
-      return chosen
+  /** ~/Documents/Blank, or app data when there is no Documents directory. */
+  private async defaultVaultPath(): Promise<string> {
+    try {
+      return await join(await documentDir(), 'Blank')
+    } catch {
+      return join(await appDataDir(), 'entries')
     }
+  }
 
-    const fallback = await join(await appDataDir(), 'entries')
-    await mkdir(fallback, { recursive: true })
-    await this.store?.set(VAULT_KEY, fallback)
-    return fallback
+  /** Create the folder if needed, persist it, use it. */
+  private async ensureVault(path: string): Promise<string> {
+    try {
+      await mkdir(path, { recursive: true })
+    } catch {
+      // The path is unreachable — an unmounted drive, a revoked permission.
+      // Fall back to the default rather than leaving the app unusable.
+      const fallback = await this.defaultVaultPath()
+      if (fallback !== path) return this.ensureVault(fallback)
+      throw new Error(`Cannot create writing folder at ${path}`)
+    }
+    await this.store?.set(VAULT_KEY, path)
+    return path
   }
 
   /** Let the user move their writing somewhere else, later. */
