@@ -427,6 +427,76 @@ button {
   padding: 0 1px;
 }
 
+/* ---------------------------------------------------------------------------
+   Focus session
+
+   A running timer takes the interface away and leaves the page. The bar is
+   faded rather than removed, because an element at zero opacity still takes
+   the pointer: the bottom strip stays its own hover target and the controls
+   come back the moment you reach for them. Out slowly, so it reads as the room
+   dimming; back quickly, because that one is a request.
+   --------------------------------------------------------------------------- */
+
+/*
+ * Two conditions, and the corner clock below carries the same width one, so
+ * the bar never goes away without something left to read the session from.
+ *
+ * A pointer, because on a touch screen an invisible bar is a row of buttons a
+ * resting thumb can press blindly and there is no hover to bring it back
+ * first. And above the phone breakpoint, because that query drops the canvas
+ * to a 20px top band, which leaves the clock nowhere to sit but on the first
+ * line of the writing.
+ */
+@media (hover: hover) and (min-width: 721px) {
+  .app.is-session .bar {
+    opacity: 0;
+    transition: opacity 900ms ease-in;
+  }
+
+  .app.is-session .bar:hover,
+  .app.is-session .bar:focus-within {
+    opacity: 1;
+    transition: opacity 180ms ease-out;
+  }
+}
+
+.session-clock {
+  position: absolute;
+  top: 18px;
+  /* Aligned to the bar's own right padding, so the number does not shift
+     sideways as it takes over from the button down there. */
+  right: 22px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: var(--blank-bar-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--blank-accent);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 320ms ease, transform 320ms ease, background-color 120ms ease;
+}
+
+/* Below this the canvas has a 20px top band and the number would land on the
+   text. The bar stays put down there, so its own timer is the session. */
+@media (min-width: 721px) {
+  .session-clock.is-on {
+    opacity: 0.75;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .session-clock.is-on:hover {
+    opacity: 1;
+    background: var(--blank-panel-hover);
+  }
+}
+
+.session-clock:focus-visible {
+  outline: 2px solid var(--blank-accent);
+  outline-offset: 1px;
+}
+
 /* Some people get motion sick from sliding panels; honour the OS switch. */
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
@@ -434,6 +504,11 @@ button {
   .sidebar__backdrop,
   .sidebar__backdrop.is-open {
     transition-duration: 0s;
+  }
+
+  /* The clock keeps its fade, which is not motion. Only the rise goes. */
+  .session-clock {
+    transform: none;
   }
 }
 

@@ -3,6 +3,24 @@ import { createEditor, type EditorHandle } from '../editor/setup'
 import { useStore } from '../state/store'
 
 /**
+ * The one live editor. A module-level handle because the host below is
+ * deliberately propless: anything passed in would re-render it and take the
+ * cursor, the scroll position and the undo history with it.
+ */
+let active: EditorHandle | null = null
+
+/**
+ * Puts the caret back in the text.
+ *
+ * Used when a focus session starts, which begins with a click on a button in
+ * the bar. Leaving focus there would hold the bar visible through
+ * `:focus-within` and the session would never actually clear the page.
+ */
+export function focusCanvas(): void {
+  active?.focus()
+}
+
+/**
  * Hosts the CodeMirror view. This component deliberately renders exactly once:
  * it reads no reactive state and takes no props. Everything that would change
  * the editor is applied imperatively from a store subscription, because a
@@ -11,7 +29,6 @@ import { useStore } from '../state/store'
  */
 function CanvasImpl() {
   const host = useRef<HTMLDivElement>(null)
-  const handle = useRef<EditorHandle | null>(null)
 
   useEffect(() => {
     const parent = host.current
@@ -24,7 +41,7 @@ function CanvasImpl() {
       liveMarkdown: initial.settings.liveMarkdown,
       onChange: (text) => useStore.getState().setBody(text),
     })
-    handle.current = editor
+    active = editor
 
     editor.setFocusScope(initial.settings.focusScope)
     editor.setTypewriter(initial.settings.typewriter)
@@ -62,7 +79,7 @@ function CanvasImpl() {
     return () => {
       unsubscribe()
       editor.destroy()
-      handle.current = null
+      active = null
     }
   }, [])
 

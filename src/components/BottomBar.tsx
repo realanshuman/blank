@@ -12,7 +12,7 @@ import {
   randomCandidates,
   type FontChoice,
 } from '../state/settings'
-import { useTimer } from '../session/timer'
+import type { Timer } from '../session/timer'
 import { countWords } from '../model/entry'
 import { openReflect } from '../features/reflect'
 
@@ -298,7 +298,13 @@ function MoreMenu({ items }: { items: MoreItem[] }) {
   )
 }
 
-export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
+export function BottomBar({
+  onOpenPalette,
+  timer,
+}: {
+  onOpenPalette: () => void
+  timer: Timer
+}) {
   const { settings, updateSettings, newEntry } = useStore(
     useShallow((state) => ({
       settings: state.settings,
@@ -306,8 +312,6 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
       newEntry: state.newEntry,
     })),
   )
-
-  const timer = useTimer(settings.timerMinutes)
 
   const cycleFontSize = () => {
     const index = FONT_SIZES.indexOf(settings.fontSize as (typeof FONT_SIZES)[number])
@@ -362,7 +366,11 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
               event.preventDefault()
               timer.reset()
             }}
-            title="Click to start or pause · right-click to reset"
+            title={
+              timer.status === 'running'
+                ? 'Pause the focus session, right-click to reset'
+                : 'Start a focus session, right-click to reset'
+            }
           >
             {timer.label}
           </button>

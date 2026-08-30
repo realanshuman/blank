@@ -181,6 +181,122 @@ test.describe('the bottom bar', () => {
   })
 })
 
+test.describe('the focus session', () => {
+  /** The bar's own opacity, sampled after the browser has settled the class. */
+  const barOpacity = (page: Page) =>
+    page.locator('.bar').evaluate((bar) => Number(getComputedStyle(bar).opacity))
+
+  test('starting the timer clears the page down to the writing', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('One sentence to start with.')
+    await expect(page.locator('.sidebar')).toHaveClass(/is-open/)
+
+    await page.getByTitle('Start a focus session').click()
+
+    // The sidebar goes, and the corner clock arrives carrying the same number
+    // the bar was showing.
+    await expect(page.locator('.sidebar')).not.toHaveClass(/is-open/)
+    await expect(page.locator('.session-clock')).toHaveClass(/is-on/)
+    await expect(page.locator('.session-clock')).toHaveText(/^\d+:\d\d$/)
+
+    // The click landed on a button in the bar, and a bar with focus inside it
+    // stays lit through :focus-within, so the session hands the caret back to
+    // the text. Without that the fade below never happens at all.
+    await expect(page.locator('.cm-content')).toBeFocused()
+
+    // Move the pointer off the bar and let the 900ms fade finish.
+    await page.mouse.move(400, 200)
+    await expect.poll(() => barOpacity(page), { timeout: 3000 }).toBe(0)
+  })
+
+  test('the bar comes back when you reach for it, and goes again', async ({ page }) => {
+    await freshApp(page)
+    await page.getByTitle('Start a focus session').click()
+    await page.mouse.move(400, 200)
+    await expect.poll(() => barOpacity(page), { timeout: 3000 }).toBe(0)
+
+    const box = await page.locator('.bar').boundingBox()
+    if (!box) throw new Error('the bar has no box')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await expect.poll(() => barOpacity(page), { timeout: 2000 }).toBe(1)
+
+    await page.mouse.move(400, 200)
+    await expect.poll(() => barOpacity(page), { timeout: 3000 }).toBe(0)
+  })
+
+  test('the corner clock ends the session', async ({ page }) => {
+    await freshApp(page)
+    await page.getByTitle('Start a focus session').click()
+    await expect(page.locator('.session-clock')).toHaveClass(/is-on/)
+
+    await page.locator('.session-clock').click()
+
+    await expect(page.locator('.session-clock')).not.toHaveClass(/is-on/)
+    await expect(page.locator('.app')).not.toHaveClass(/is-session/)
+    await page.mouse.move(400, 200)
+    // Back to the bar's resting opacity, not to zero.
+    await expect.poll(() => barOpacity(page), { timeout: 2000 }).toBeGreaterThan(0.5)
+  })
+
+  test('never lets the clock land on the writing in a narrow window', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type(
+      'The room goes quiet when the clock starts, and I keep writing anyway.',
+    )
+    await page.getByTitle('Start a focus session').click()
+    // Off the bar, or it sits hovered and never fades at any width.
+    await page.mouse.move(300, 400)
+
+    // Below the phone breakpoint the canvas keeps only a 20px top band, so the
+    // corner clock has nowhere to sit but on the first line. It stood on the
+    // words. Both the clock and the bar's fade are held above that width, so
+    // the bar stays put there and is the session's own indicator.
+    for (const width of [1280, 900, 760, 700, 390]) {
+      await page.setViewportSize({ width, height: 780 })
+      // Long enough for both fades (900ms for the bar, 320ms for the clock) to
+      // finish: sampled early, a clock on its way out still measures visible.
+      await page.waitForTimeout(1100)
+
+      const overlap = await page.evaluate(() => {
+        const clock = document.querySelector('.session-clock')
+        const line = document.querySelector('.cm-line')
+        if (!clock || !line) return null
+        const shown = Number(getComputedStyle(clock).opacity) > 0
+        const a = clock.getBoundingClientRect()
+        const b = line.getBoundingClientRect()
+        const hits =
+          a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom
+        return { shown, hits, barFades: Number(getComputedStyle(document.querySelector('.bar')).opacity) < 0.8 }
+      })
+
+      expect(overlap, `no clock at ${width}px`).not.toBeNull()
+      if (overlap!.shown) {
+        expect(overlap!.hits, `clock covers the text at ${width}px`).toBe(false)
+      } else {
+        // With no clock there must still be a visible bar to read and to stop
+        // the session from.
+        expect(overlap!.barFades, `bar faded with no clock at ${width}px`).toBe(false)
+      }
+    }
+  })
+
+  test('one timer drives both clocks', async ({ page }) => {
+    await freshApp(page)
+    await page.getByTitle('Start a focus session').click()
+
+    // useTimer holds its own state, so calling it in two places would run two
+    // unrelated countdowns that drift apart within a second.
+    const box = await page.locator('.bar').boundingBox()
+    if (!box) throw new Error('the bar has no box')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.waitForTimeout(1200)
+
+    const corner = await page.locator('.session-clock').textContent()
+    const inBar = await page.getByTitle('Pause the focus session').textContent()
+    expect(corner).toBe(inBar)
+  })
+})
+
 test.describe('persistence', () => {
   test('entries survive a reload', async ({ page }) => {
     await freshApp(page)
