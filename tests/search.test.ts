@@ -32,7 +32,13 @@ describe('query parsing', () => {
   })
 
   it('is empty for an empty query', () => {
-    expect(parseQuery('   ')).toEqual({ terms: [], phrases: [], tags: [] })
+    expect(parseQuery('   ')).toEqual({
+      terms: [],
+      phrases: [],
+      tags: [],
+      regex: null,
+      badRegex: false,
+    })
   })
 
   it('treats a bare colon-free word as a term', () => {
@@ -112,5 +118,52 @@ describe('snippets', () => {
     expect(hit).toBeDefined()
     expect(hit!.snippet.toLowerCase()).toContain('needle')
     expect(hit!.snippet.length).toBeLessThan(200)
+  })
+})
+
+describe('regex queries', () => {
+  const entries: Entry[] = [
+    entry('retry', 'The adapter called retry(3) and then retry(5) before giving up.'),
+    entry('prose', 'A quiet morning. Nothing technical here at all.'),
+    entry('slashes', 'The file lives at src/model/search.ts today.'),
+  ]
+
+  it('matches a pattern wrapped in slashes', () => {
+    const hits = searchEntries(entries, '/retry\\(\\d\\)/')
+    expect(hits).toHaveLength(1)
+    expect(hits[0]!.meta.id).toBe('retry')
+  })
+
+  it('highlights every occurrence in the snippet', () => {
+    const hits = searchEntries(entries, '/retry\\(\\d\\)/')
+    expect(hits[0]!.ranges.length).toBeGreaterThanOrEqual(2)
+    for (const [start, end] of hits[0]!.ranges) {
+      expect(hits[0]!.snippet.slice(start, end)).toMatch(/^retry\(\d\)$/)
+    }
+  })
+
+  it('honours flags, so case sensitivity is available', () => {
+    expect(searchEntries(entries, '/ADAPTER/')).toHaveLength(0)
+    expect(searchEntries(entries, '/ADAPTER/i')).toHaveLength(1)
+  })
+
+  it('leaves an ordinary query containing a slash alone', () => {
+    // A path is not a regex. Only a query wrapped end to end in slashes is.
+    const hits = searchEntries(entries, 'src/model/search.ts')
+    expect(hits).toHaveLength(1)
+    expect(hits[0]!.meta.id).toBe('slashes')
+    expect(parseQuery('src/model/search.ts').regex).toBeNull()
+  })
+
+  it('shows nothing rather than throwing on a half-typed pattern', () => {
+    // A search box spends most of its life holding an unfinished query.
+    expect(parseQuery('/foo(/').badRegex).toBe(true)
+    expect(() => searchEntries(entries, '/foo(/')).not.toThrow()
+    expect(searchEntries(entries, '/foo(/')).toHaveLength(0)
+  })
+
+  it('survives a pattern that can match nothing', () => {
+    // A zero-length match would otherwise never advance the scan.
+    expect(() => searchEntries(entries, '/x*/')).not.toThrow()
   })
 })
