@@ -37,10 +37,10 @@ export const FONT_STACKS = {
   arial: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
   system:
     "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-  // Times New Roman, because that is exactly what the original names for its
-  // Serif option: `["Lato-Regular", "Arial", ".AppleSystemUIFont", "Times New
-  // Roman"]`. Liberation Serif is the metric-compatible stand-in on Linux,
-  // which has no Times.
+  // A classic book serif rather than a screen-reading one: this is the face
+  // people expect when a writing app offers "Serif", and it is what the apps
+  // in this category reach for. Liberation Serif is the metric-compatible
+  // stand-in on Linux, which ships no Times.
   serif: "'Times New Roman', Times, 'Liberation Serif', Tinos, serif",
   mono: "'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace",
 
