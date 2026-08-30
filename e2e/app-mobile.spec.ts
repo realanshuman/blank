@@ -36,7 +36,7 @@ test.describe('the app on a phone', () => {
     const { context, page } = await openApp(browser, PHONE)
     // The original mobile blocker: the sidebar overlaid the canvas and
     // swallowed taps, so the app could not be written in at all.
-    await expect(page.locator('.sidebar')).toHaveCount(0)
+    await expect(page.locator('.sidebar')).toBeHidden()
     await page.locator('.cm-content').click()
     await page.keyboard.type('Typed on a phone.')
     await expect(page.locator('.cm-content')).toContainText('Typed on a phone.')
@@ -60,7 +60,7 @@ test.describe('the app on a phone', () => {
     // The backdrop spans the screen but the sheet covers most of it, so click
     // where a thumb actually lands: the visible sliver beside the sheet.
     await backdrop.click({ position: { x: 12, y: 300 } })
-    await expect(page.locator('.sidebar')).toHaveCount(0)
+    await expect(page.locator('.sidebar')).toBeHidden()
     await context.close()
   })
 

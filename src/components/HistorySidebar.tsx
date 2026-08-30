@@ -278,7 +278,7 @@ function EntryRow({
   )
 }
 
-export function HistorySidebar() {
+export function HistorySidebar({ open }: { open: boolean }) {
   const { entries, results, query, currentId, storageLocation, canChooseFolder } = useStore(
     useShallow((state) => ({
       entries: state.entries,
@@ -302,7 +302,7 @@ export function HistorySidebar() {
   )
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? ' is-open' : ''}`} aria-hidden={!open}>
       <div className="sidebar__head">
         <div className="sidebar__title">History</div>
         {canChooseFolder ? (

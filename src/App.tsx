@@ -86,18 +86,16 @@ export function App() {
         <Canvas />
         <BottomBar onOpenPalette={() => setPaletteOpen(true)} />
       </div>
-      {sidebarOpen && (
-        <>
-          {/* Only visible on phones, where the sidebar is an overlay. Tapping
-              it is the obvious way back to the writing. */}
-          <button
-            className="sidebar__backdrop"
-            aria-label="Close history"
-            onClick={() => useStore.getState().updateSettings({ sidebarOpen: false })}
-          />
-          <HistorySidebar />
-        </>
-      )}
+      {/* Both stay mounted and are moved with a class rather than being added
+          and removed. A sidebar that unmounts on close has nothing left to
+          animate: it would slide in and then simply vanish. */}
+      <button
+        className={`sidebar__backdrop${sidebarOpen ? ' is-open' : ''}`}
+        aria-label="Close history"
+        tabIndex={sidebarOpen ? undefined : -1}
+        onClick={() => useStore.getState().updateSettings({ sidebarOpen: false })}
+      />
+      <HistorySidebar open={sidebarOpen} />
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   )

@@ -210,6 +210,37 @@ test.describe('persistence', () => {
   })
 })
 
+test.describe('the history sidebar', () => {
+  test('slides out and back rather than blinking in and out', async ({ page }) => {
+    await freshApp(page)
+    const sidebar = page.locator('.sidebar')
+    await expect(sidebar).toBeVisible()
+    const opened = await sidebar.boundingBox()
+    if (!opened) throw new Error('sidebar has no box while open')
+
+    await page.getByTitle('Toggle history').click()
+    await page.waitForTimeout(60)
+
+    // Caught in flight: still on screen, already travelling right. The sidebar
+    // used to unmount the moment it was toggled, so there was nothing left to
+    // animate and nothing here to catch.
+    const leaving = await sidebar.boundingBox()
+    if (!leaving) throw new Error('sidebar vanished instead of sliding out')
+    expect(leaving.x).toBeGreaterThan(opened.x)
+    expect(leaving.x).toBeLessThan(opened.x + opened.width)
+
+    await expect(sidebar).toBeHidden()
+
+    // And back in from the same edge.
+    await page.getByTitle('Toggle history').click()
+    await page.waitForTimeout(60)
+    const arriving = await sidebar.boundingBox()
+    if (!arriving) throw new Error('sidebar did not come back')
+    expect(arriving.x).toBeGreaterThan(opened.x)
+    await expect(sidebar).toBeVisible()
+  })
+})
+
 test.describe('selection', () => {
   /** The colour actually painted behind selected text, with the editor focused. */
   async function selectionColour(page: Page): Promise<string> {

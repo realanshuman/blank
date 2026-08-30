@@ -294,6 +294,16 @@ button {
   padding: 0 1px;
 }
 
+/* Some people get motion sick from sliding panels; honour the OS switch. */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar.is-open,
+  .sidebar__backdrop,
+  .sidebar__backdrop.is-open {
+    transition-duration: 0s;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Typeface menu
    --------------------------------------------------------------------------- */
@@ -456,6 +466,28 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 0;
+
+  /*
+   * Closed, it is pulled fully off the right edge by its own width, so it
+   * contributes nothing to the row and the canvas has the window to itself.
+   * Animating the margin rather than the width is what keeps the panel's
+   * contents still: the sidebar is always 260px wide, it is only ever
+   * somewhere else, so nothing inside it reflows mid-slide.
+   *
+   * Visibility trails the slide by its full duration on the way out, so the
+   * panel is still there to be seen leaving, then stops being focusable.
+   */
+  margin-right: calc(-1 * var(--blank-sidebar-width));
+  visibility: hidden;
+  transition: margin-right 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    visibility 0s linear 200ms;
+}
+
+.sidebar.is-open {
+  margin-right: 0;
+  visibility: visible;
+  transition: margin-right 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    visibility 0s;
 }
 
 .sidebar__head {
@@ -849,13 +881,19 @@ button.sidebar__path--link:focus-visible .sidebar__path-arrow {
     box-shadow: -8px 0 32px rgba(0, 0, 0, 0.22);
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
-    animation: sheet-in 180ms ease-out;
+
+    /* Fixed and over the canvas here, so it travels on a transform rather
+       than a margin. Nothing below it moves. */
+    margin-right: 0;
+    transform: translateX(100%);
+    transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      visibility 0s linear 200ms;
   }
 
-  @keyframes sheet-in {
-    from {
-      transform: translateX(100%);
-    }
+  .sidebar.is-open {
+    margin-right: 0;
+    transform: none;
+    transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1), visibility 0s;
   }
 
   .sidebar__backdrop {
@@ -865,13 +903,15 @@ button.sidebar__path--link:focus-visible .sidebar__path-arrow {
     background: rgba(0, 0, 0, 0.32);
     border: 0;
     display: block;
-    animation: fade-in 180ms ease-out;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 200ms ease, visibility 0s linear 200ms;
   }
 
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
+  .sidebar__backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 200ms ease, visibility 0s;
   }
 
   /* Comfortable one-handed targets. */
