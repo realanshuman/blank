@@ -18,8 +18,9 @@
 @import '@fontsource/lato/700.css';
 @import '@fontsource/lato/700-italic.css';
 
-/* The Serif option. Source Serif 4 is drawn for screen reading rather than
-   print, which is what this is for. */
+/* Reachable through Random. The Serif button itself is Times New Roman, to
+   match the app this one is modelled on, but Source Serif 4 is drawn for
+   screen reading rather than print and is worth keeping in the pool. */
 @import '@fontsource/source-serif-4/400.css';
 @import '@fontsource/source-serif-4/400-italic.css';
 @import '@fontsource/source-serif-4/600.css';

@@ -1,17 +1,15 @@
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
-import { FONT_LABELS, FONT_SIZES, type FontChoice } from '../state/settings'
+import {
+  BAR_FONTS,
+  FONT_LABELS,
+  FONT_SIZES,
+  pickRandomFont,
+  randomCandidates,
+} from '../state/settings'
 import { useTimer } from '../session/timer'
 import { countWords } from '../model/entry'
 import { openReflect } from '../features/reflect'
-
-const FONT_ORDER: FontChoice[] = ['lato', 'arial', 'system', 'serif', 'mono']
-
-/** The original's "Random": hand the choice over, but never a no-op. */
-function randomFont(current: FontChoice): FontChoice {
-  const others = FONT_ORDER.filter((font) => font !== current)
-  return others[Math.floor(Math.random() * others.length)] ?? current
-}
 
 function Separator() {
   return <span className="bar__sep" aria-hidden="true">•</span>
@@ -83,7 +81,7 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
         </button>
         <Separator />
         <span className="bar__fonts">
-          {FONT_ORDER.map((font, index) => (
+          {BAR_FONTS.map((font, index) => (
             <span key={font} style={{ display: 'contents' }}>
               {index > 0 && <Separator />}
               <button
@@ -99,8 +97,14 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
           <Separator />
           <button
             className="bar__btn"
-            onClick={() => updateSettings({ fontFamily: randomFont(settings.fontFamily) })}
-            title="Pick a font for me"
+            onClick={() => {
+              void randomCandidates().then((candidates) =>
+                updateSettings({
+                  fontFamily: pickRandomFont(settings.fontFamily, candidates),
+                }),
+              )
+            }}
+            title="Pick a font for me, from every font on this machine"
           >
             Random
           </button>

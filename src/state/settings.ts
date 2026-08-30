@@ -1,6 +1,5 @@
 import type { FocusScope } from '../editor/focus'
 
-export type FontChoice = 'lato' | 'arial' | 'system' | 'serif' | 'mono'
 export type ThemeChoice = 'light' | 'dark' | 'sepia' | 'system'
 
 export interface Settings {
@@ -23,16 +22,59 @@ export interface Settings {
   sidebarOpen: boolean
 }
 
-export const FONT_STACKS: Record<FontChoice, string> = {
-  // Lato and Source Serif 4 are bundled, so these are guaranteed rather than
-  // dependent on what the machine happens to have installed.
+/**
+ * Every font the app can render. The first five are the ones the bottom bar
+ * names; the rest exist only to give Random somewhere to go.
+ *
+ * Keyed rather than free-form strings on purpose: a stored setting is
+ * validated with `value in FONT_STACKS`, so a font that no longer exists here
+ * falls back to the default instead of writing an unknown family into the CSS.
+ */
+export const FONT_STACKS = {
+  // Lato is bundled, so this one is guaranteed rather than dependent on what
+  // the machine happens to have installed.
   lato: "'Lato', 'Helvetica Neue', Helvetica, Arial, sans-serif",
   arial: "Arial, 'Helvetica Neue', Helvetica, sans-serif",
   system:
     "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-  serif: "'Source Serif 4', 'Iowan Old Style', Palatino, Georgia, serif",
+  // Times New Roman, because that is exactly what the original names for its
+  // Serif option: `["Lato-Regular", "Arial", ".AppleSystemUIFont", "Times New
+  // Roman"]`. Liberation Serif is the metric-compatible stand-in on Linux,
+  // which has no Times.
+  serif: "'Times New Roman', Times, 'Liberation Serif', Tinos, serif",
   mono: "'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace",
-}
+
+  // Random-only. Each names a real family with same-flavour fallbacks, and
+  // anything the machine does not have is filtered out at runtime rather than
+  // silently rendering as something else.
+  sourceserif: "'Source Serif 4', Charter, Georgia, serif",
+  georgia: "Georgia, 'Times New Roman', serif",
+  baskerville: "Baskerville, 'Libre Baskerville', Georgia, serif",
+  palatino: "Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, serif",
+  garamond: "Garamond, 'EB Garamond', 'Apple Garamond', Georgia, serif",
+  iowan: "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif",
+  charter: "Charter, 'Bitstream Charter', Georgia, serif",
+  hoefler: "'Hoefler Text', 'Baskerville Old Face', Georgia, serif",
+  cochin: "Cochin, 'Hoefler Text', Georgia, serif",
+  didot: "Didot, 'Bodoni MT', 'Playfair Display', Georgia, serif",
+  cambria: "Cambria, Georgia, serif",
+  constantia: "Constantia, Georgia, serif",
+  times: "'Times New Roman', Times, 'Liberation Serif', serif",
+  typewriter: "'American Typewriter', 'Courier New', Courier, monospace",
+  rockwell: "Rockwell, 'Roboto Slab', Georgia, serif",
+  optima: "Optima, 'Segoe UI', Candara, sans-serif",
+  futura: "Futura, 'Century Gothic', 'Trebuchet MS', sans-serif",
+  avenir: "'Avenir Next', Avenir, 'Segoe UI', sans-serif",
+  gillsans: "'Gill Sans', 'Gill Sans MT', Calibri, sans-serif",
+  trebuchet: "'Trebuchet MS', 'Lucida Grande', sans-serif",
+  verdana: "Verdana, Geneva, sans-serif",
+  tahoma: "Tahoma, Geneva, Verdana, sans-serif",
+  helvetica: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+  courier: "'Courier New', Courier, 'Nimbus Mono PS', monospace",
+  consolas: "Consolas, 'Liberation Mono', Menlo, monospace",
+} as const satisfies Record<string, string>
+
+export type FontChoice = keyof typeof FONT_STACKS
 
 export const FONT_LABELS: Record<FontChoice, string> = {
   lato: 'Lato',
@@ -40,6 +82,129 @@ export const FONT_LABELS: Record<FontChoice, string> = {
   system: 'System',
   serif: 'Serif',
   mono: 'Mono',
+  sourceserif: 'Source Serif',
+  georgia: 'Georgia',
+  baskerville: 'Baskerville',
+  palatino: 'Palatino',
+  garamond: 'Garamond',
+  iowan: 'Iowan Old Style',
+  charter: 'Charter',
+  hoefler: 'Hoefler Text',
+  cochin: 'Cochin',
+  didot: 'Didot',
+  cambria: 'Cambria',
+  constantia: 'Constantia',
+  times: 'Times New Roman',
+  typewriter: 'American Typewriter',
+  rockwell: 'Rockwell',
+  optima: 'Optima',
+  futura: 'Futura',
+  avenir: 'Avenir',
+  gillsans: 'Gill Sans',
+  trebuchet: 'Trebuchet',
+  verdana: 'Verdana',
+  tahoma: 'Tahoma',
+  helvetica: 'Helvetica',
+  courier: 'Courier',
+  consolas: 'Consolas',
+}
+
+/** The five the bottom bar spells out, in bar order. */
+export const BAR_FONTS: FontChoice[] = ['lato', 'arial', 'system', 'serif', 'mono']
+
+export const ALL_FONTS = Object.keys(FONT_STACKS) as FontChoice[]
+
+// --- Random -----------------------------------------------------------------
+
+/** Two probes: two fonts sharing one width rarely share both. */
+const PROBES = ['mmmwwwiiil0OQ gjpqy', 'The quick brown fox, 1234567890']
+
+let cachedCandidates: FontChoice[] | null = null
+
+/**
+ * Families the app ships itself. They must be loaded before anything is
+ * measured: an unloaded webfont measures exactly like the generic it falls
+ * back to, so measuring too early drops our own bundled faces from the pool.
+ */
+const BUNDLED_FAMILIES = ['"Lato"', '"Source Serif 4"']
+
+/**
+ * The fonts this machine can actually render, one per distinct face.
+ *
+ * `document.fonts.check` cannot answer this: it accounts for fallback and so
+ * says yes to families that are not installed. Measuring can. A family that is
+ * missing renders as whatever generic it falls back to and therefore measures
+ * exactly like that generic, while an installed family almost never matches
+ * all three generics at once.
+ *
+ * The second pass drops duplicates, which matters more than it sounds: Linux
+ * maps most classic families onto a handful of metric-compatible clones, so
+ * without it Random could "change" the font without changing a pixel, which
+ * reads as a broken button.
+ */
+export async function randomCandidates(): Promise<FontChoice[]> {
+  if (cachedCandidates) return cachedCandidates
+
+  if (typeof document !== 'undefined' && document.fonts) {
+    try {
+      await Promise.all(BUNDLED_FAMILIES.map((family) => document.fonts.load(`72px ${family}`)))
+      await document.fonts.ready
+    } catch {
+      // Measurement below still runs; at worst a bundled face is missed.
+    }
+  }
+
+  const context =
+    typeof document === 'undefined'
+      ? null
+      : document.createElement('canvas').getContext('2d')
+  if (!context) return (cachedCandidates = BAR_FONTS)
+
+  const widths = (family: string) =>
+    PROBES.map((probe) => {
+      context.font = `72px ${family}`
+      return Math.round(context.measureText(probe).width)
+    })
+
+  const generics = ['monospace', 'serif', 'sans-serif']
+  const genericWidths = generics.map(widths)
+
+  const seen = new Set<string>()
+  const pool: FontChoice[] = []
+
+  for (const font of ALL_FONTS) {
+    const stack = FONT_STACKS[font]
+    const installed = generics.every((generic, index) => {
+      const fallback = genericWidths[index]
+      const measured = widths(`${stack}, ${generic}`)
+      return measured.some((value, probe) => value !== fallback?.[probe])
+    })
+    if (!installed) continue
+
+    const signature = widths(stack).join(':')
+    if (seen.has(signature)) continue
+    seen.add(signature)
+    pool.push(font)
+  }
+
+  // A machine with almost nothing installed must still have a working button.
+  cachedCandidates = pool.length > 1 ? pool : BAR_FONTS
+  return cachedCandidates
+}
+
+/**
+ * Never a no-op: picking the font already showing would read as a dead button,
+ * so the current one is excluded before the draw.
+ */
+export function pickRandomFont(
+  current: FontChoice,
+  candidates: FontChoice[],
+  random: () => number = Math.random,
+): FontChoice {
+  const others = candidates.filter((font) => font !== current)
+  if (others.length === 0) return current
+  const index = Math.min(others.length - 1, Math.floor(random() * others.length))
+  return others[index] ?? current
 }
 
 /** Cycled by clicking the size control, matching the original's stepping. */
