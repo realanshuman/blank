@@ -97,6 +97,7 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
           <Separator />
           <button
             className="bar__btn"
+            aria-pressed={!BAR_FONTS.includes(settings.fontFamily)}
             onClick={() => {
               void randomCandidates().then((candidates) =>
                 updateSettings({
@@ -106,7 +107,11 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
             }}
             title="Pick a font for me, from every font on this machine"
           >
-            Random
+            {/* Naming the pick is the difference between a font you chose and
+                one that merely happened to you. */}
+            {BAR_FONTS.includes(settings.fontFamily)
+              ? 'Random'
+              : `Random [${FONT_LABELS[settings.fontFamily]}]`}
           </button>
           <Separator />
         </span>
