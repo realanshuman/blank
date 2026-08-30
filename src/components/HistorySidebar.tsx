@@ -238,11 +238,14 @@ function EntryRow({
       )}
 
       <span className="entry__actions">
+        {/* While the delete is armed, the row is asking one question; the
+            download collapses away so "Sure?" never pushes onto the title. */}
         <button
           type="button"
-          className="entry__action"
+          className={`entry__action entry__action--download${confirming ? ' is-eclipsed' : ''}`}
           aria-label="Download as PDF"
           title="Download as PDF"
+          disabled={confirming}
           onClick={(event) => {
             event.stopPropagation()
             void downloadEntry(meta.id)

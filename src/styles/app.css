@@ -530,6 +530,18 @@ button.sidebar__path--link:focus-visible .sidebar__path-arrow {
   background: var(--blank-panel-active);
 }
 
+.entry__action--download {
+  transition: width 140ms ease, opacity 140ms ease, color 120ms ease,
+    background-color 120ms ease;
+}
+
+.entry__action--download.is-eclipsed {
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .entry__action--confirm {
   width: auto;
   padding: 0 8px;

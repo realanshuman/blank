@@ -207,6 +207,15 @@ test.describe('row actions', () => {
     const actions = await row.locator('.entry__actions').boundingBox()
     if (!title || !actions) throw new Error('row pieces missing')
     expect(title.x + title.width).toBeLessThanOrEqual(actions.x + 1)
+
+    // Armed state: "Sure?" is wider than the trash it replaces, so the
+    // download collapses away instead of being pushed onto the title.
+    await row.getByTitle('Delete this entry').click()
+    await page.waitForTimeout(250)
+    await expect(row.getByTitle('Download as PDF')).toBeHidden()
+    const confirm = await row.getByText('Sure?').boundingBox()
+    if (!confirm) throw new Error('confirm missing')
+    expect(title.x + title.width).toBeLessThanOrEqual(confirm.x + 1)
   })
 
   test('the download button saves the entry as a PDF', async ({ page }) => {
