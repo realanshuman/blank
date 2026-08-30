@@ -196,6 +196,13 @@ button {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  /*
+   * Load-bearing on macOS, not just breathing room. The desktop window hides
+   * its title bar and runs the webview edge to edge, so the close, minimise
+   * and zoom buttons float over this band. Tighten it and they land on live
+   * text. The window's minWidth is held above the phone breakpoint below for
+   * the same reason: that query drops this to 20px.
+   */
   padding-top: 64px;
 }
 
