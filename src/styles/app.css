@@ -21,7 +21,7 @@
   --blank-bar-size: 14px;
 
   --blank-sidebar-width: 260px;
-  --blank-bar-height: 44px;
+  --blank-bar-height: 56px;
 
   /* Set from JS on devices whose on-screen keyboard shrinks the visual
      viewport, so the bottom bar rides above the keyboard instead of under it. */
