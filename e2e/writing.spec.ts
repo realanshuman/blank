@@ -297,6 +297,111 @@ test.describe('the focus session', () => {
   })
 })
 
+test.describe('the display faces', () => {
+  test('are bundled, not names that quietly fall back', async ({ page }) => {
+    await freshApp(page)
+    await page.getByTitle('Choose a typeface').click()
+
+    // Read the names out of the menu rather than restating them here: the
+    // point is that what the picker offers is what the app can actually draw.
+    const families: string[] = []
+    for (const section of await page.locator('.bar__menu-section').all()) {
+      await section.locator('.bar__menu-group').click()
+      families.push(...(await section.locator('.bar__menu-item').allTextContents()))
+    }
+    expect(families).toHaveLength(50)
+
+    // load() resolves with the FontFace objects our own @font-face rules
+    // declared, so an empty array means that name has no face behind it and
+    // the entry would render as its fallback. document.fonts.check cannot be
+    // used for this: it accounts for fallback and answers true either way.
+    const unbacked = await page.evaluate(async (names) => {
+      const missing: string[] = []
+      for (const family of names) {
+        const faces = await document.fonts.load(`72px "${family}"`)
+        if (faces.length === 0) missing.push(family)
+      }
+      return missing
+    }, families)
+
+    expect(unbacked).toEqual([])
+  })
+
+  test('start folded away, and one reaches the page when picked', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('The room goes quiet when the clock starts.')
+    await page.getByTitle('Choose a typeface').click()
+
+    // Fifty specimens unfurled is a wall, and rendering them all is what pulls
+    // every face over the network at once. Shut until asked.
+    const sections = page.locator('.bar__menu-section')
+    await expect(sections).toHaveCount(7)
+    const before = await page.locator('.bar__menu-item').count()
+
+    const horror = sections.filter({ has: page.getByTitle('Horror typefaces') })
+    await horror.locator('.bar__menu-group').click()
+    expect(await page.locator('.bar__menu-item').count()).toBe(before + 5)
+
+    await page.getByTitle('Creepster').click()
+    await expect(page.getByTitle('Choose a typeface')).toHaveText('Creepster')
+    await expect(page.locator('.cm-content')).toHaveCSS('font-family', /Creepster/)
+  })
+
+  test('do not stretch the bar with their long names', async ({ page }) => {
+    await freshApp(page)
+    await page.getByTitle('Choose a typeface').click()
+    const oldWorld = page
+      .locator('.bar__menu-section')
+      .filter({ has: page.getByTitle('Old world typefaces') })
+    await oldWorld.locator('.bar__menu-group').click()
+    await page.getByTitle('UnifrakturMaguntia').click()
+
+    // The trigger shows the name of the chosen face, and these names are much
+    // longer than "Lato". Uncapped, the bar's left half grows until its right
+    // half is pushed out of the window, which is the clipping the width test
+    // above already guards against for a different cause.
+    for (const width of [1440, 1100, 900, 760]) {
+      await page.setViewportSize({ width, height: 700 })
+      await page.waitForTimeout(200)
+      const clipped = await page
+        .locator('.bar')
+        .evaluate((bar) => bar.scrollWidth > bar.clientWidth + 1)
+      expect(clipped, `bar clipped at ${width}px`).toBe(false)
+      await expect(page.getByTitle('Toggle history')).toBeInViewport()
+    }
+  })
+
+  test('are never what Surprise me hands you', async ({ page }) => {
+    await freshApp(page)
+
+    // Unfold every group first, and not for convenience: that is what pulls
+    // the faces over the network. Random keeps only the families it can
+    // measure as present, so an unloaded webfont is indistinguishable from an
+    // uninstalled one and drops out on its own. Draw before opening the menu
+    // and the pool looks clean whether or not the boundary exists.
+    await page.getByTitle('Choose a typeface').click()
+    const display: string[] = []
+    for (const section of await page.locator('.bar__menu-section').all()) {
+      await section.locator('.bar__menu-group').click()
+      display.push(...(await section.locator('.bar__menu-item').allTextContents()))
+    }
+    expect(display).toHaveLength(50)
+    await page.keyboard.press('Escape')
+
+    // Random is a "give me a different page to write on" button. Nobody 300
+    // words into a journal entry wants Nosifer.
+    const drawn = new Set<string>()
+    for (let draw = 0; draw < 25; draw += 1) {
+      await page.getByTitle('Choose a typeface').click()
+      await page.getByRole('button', { name: 'Surprise me' }).click()
+      drawn.add((await page.getByTitle('Choose a typeface').textContent()) ?? '')
+    }
+
+    expect(drawn.size, 'Random never moved').toBeGreaterThan(1)
+    expect([...drawn].filter((name) => display.includes(name))).toEqual([])
+  })
+})
+
 test.describe('persistence', () => {
   test('entries survive a reload', async ({ page }) => {
     await freshApp(page)

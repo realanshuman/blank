@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
 import {
-  ALL_FONTS,
   BAR_FONTS,
   FONT_LABELS,
   FONT_SIZES,
   FONT_STACKS,
+  TEXT_FONTS,
+  WILD_GROUPS,
   effectiveTheme,
   pickRandomFont,
   randomCandidates,
@@ -47,7 +48,14 @@ function SessionRate() {
   )
 }
 
-const EXTRA_FONTS = ALL_FONTS.filter((font) => !BAR_FONTS.includes(font))
+/* The text faces the bar does not spell out. The display faces are deliberately
+   not here: they come with their own groups further down the menu. */
+const EXTRA_FONTS = TEXT_FONTS.filter((font) => !BAR_FONTS.includes(font))
+
+/** Which display group a face belongs to, for opening the menu on it. */
+const GROUP_OF = new Map<FontChoice, string>(
+  WILD_GROUPS.flatMap((group) => group.fonts.map((font) => [font, group.label] as const)),
+)
 
 /**
  * The four themes as one progression: a full sun, a half, a crescent, then a
@@ -140,6 +148,13 @@ function FontMenu({
   onSize: (size: number) => void
 }) {
   const [open, setOpen] = useState(false)
+  // Shut by default, except the group holding the face you are already using:
+  // without that, picking Creepster and reopening the menu shows no tick
+  // anywhere and the current selection looks lost.
+  const [shown, setShown] = useState<string[]>(() => {
+    const group = GROUP_OF.get(current)
+    return group ? [group] : []
+  })
   const wrap = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -170,6 +185,9 @@ function FontMenu({
       key={font}
       className={`bar__menu-item${font === current ? ' is-current' : ''}`}
       style={{ fontFamily: FONT_STACKS[font] }}
+      // A wide face runs past the panel and ellipsizes: "Press Star…" still
+      // shows you the specimen, but the name has to be recoverable.
+      title={FONT_LABELS[font]}
       onClick={() => choose(font)}
     >
       {FONT_LABELS[font]}
@@ -218,6 +236,37 @@ function FontMenu({
 
           <div className="bar__menu-rule" />
           {EXTRA_FONTS.map(item)}
+
+          {WILD_GROUPS.map((group) => {
+            const isShown = shown.includes(group.label)
+            return (
+              <div className="bar__menu-section" key={group.label}>
+                <div className="bar__menu-rule" />
+                <button
+                  className="bar__menu-group"
+                  aria-expanded={isShown}
+                  title={`${group.label} typefaces`}
+                  onClick={() =>
+                    setShown((groups) =>
+                      isShown
+                        ? groups.filter((name) => name !== group.label)
+                        : [...groups, group.label],
+                    )
+                  }
+                >
+                  <span className={`bar__menu-caret${isShown ? ' is-open' : ''}`} aria-hidden="true">
+                    &rsaquo;
+                  </span>
+                  {group.label}
+                  <span className="bar__menu-count">{group.fonts.length}</span>
+                </button>
+                {/* Rendered only while open, which is also what keeps the
+                    browser from fetching all fifty faces at once: a face is
+                    downloaded when something is drawn in it. */}
+                {isShown && group.fonts.map(item)}
+              </div>
+            )
+          })}
         </div>
       )}
     </span>

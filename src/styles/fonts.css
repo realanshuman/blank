@@ -24,3 +24,84 @@
 @import '@fontsource/source-serif-4/400.css';
 @import '@fontsource/source-serif-4/400-italic.css';
 @import '@fontsource/source-serif-4/600.css';
+
+/*
+ * The display faces.
+ *
+ * Bundled rather than named as system fonts for the reason at the top of this
+ * file: a decorative family is exactly the kind nobody has installed, so a
+ * picker offering "Creepster" from the system would show fifty entries that
+ * all render as Helvetica. These ship with the app, so the menu shows every
+ * one of them drawn in itself on every platform.
+ *
+ * Only the latin subset at weight 400. These are display faces used at one
+ * size for one line of text; pulling cyrillic, greek and vietnamese for each
+ * would multiply the asset count by five for coverage nothing here asks for.
+ * A browser downloads a face only when something renders in it, so the cost
+ * of all fifty is paid once, on first opening the typeface menu, and nothing
+ * at all if it is never opened.
+ */
+
+/* Handwritten */
+@import '@fontsource/permanent-marker/latin-400.css';
+@import '@fontsource/caveat/latin-400.css';
+@import '@fontsource/indie-flower/latin-400.css';
+@import '@fontsource/shadows-into-light/latin-400.css';
+@import '@fontsource/rock-salt/latin-400.css';
+@import '@fontsource/architects-daughter/latin-400.css';
+@import '@fontsource/gloria-hallelujah/latin-400.css';
+@import '@fontsource/patrick-hand/latin-400.css';
+@import '@fontsource/reenie-beanie/latin-400.css';
+@import '@fontsource/homemade-apple/latin-400.css';
+
+/* Script */
+@import '@fontsource/dancing-script/latin-400.css';
+@import '@fontsource/great-vibes/latin-400.css';
+@import '@fontsource/pacifico/latin-400.css';
+@import '@fontsource/sacramento/latin-400.css';
+@import '@fontsource/satisfy/latin-400.css';
+@import '@fontsource/courgette/latin-400.css';
+@import '@fontsource/yellowtail/latin-400.css';
+
+/* Poster */
+@import '@fontsource/anton/latin-400.css';
+@import '@fontsource/bebas-neue/latin-400.css';
+@import '@fontsource/alfa-slab-one/latin-400.css';
+@import '@fontsource/abril-fatface/latin-400.css';
+@import '@fontsource/ultra/latin-400.css';
+@import '@fontsource/titan-one/latin-400.css';
+@import '@fontsource/bowlby-one/latin-400.css';
+@import '@fontsource/passion-one/latin-400.css';
+@import '@fontsource/staatliches/latin-400.css';
+@import '@fontsource/archivo-black/latin-400.css';
+
+/* Playful */
+@import '@fontsource/bangers/latin-400.css';
+@import '@fontsource/chewy/latin-400.css';
+@import '@fontsource/fredoka/latin-400.css';
+@import '@fontsource/righteous/latin-400.css';
+@import '@fontsource/luckiest-guy/latin-400.css';
+@import '@fontsource/bungee/latin-400.css';
+@import '@fontsource/baloo-2/latin-400.css';
+@import '@fontsource/lobster/latin-400.css';
+
+/* Horror */
+@import '@fontsource/creepster/latin-400.css';
+@import '@fontsource/nosifer/latin-400.css';
+@import '@fontsource/eater/latin-400.css';
+@import '@fontsource/butcherman/latin-400.css';
+@import '@fontsource/metal-mania/latin-400.css';
+
+/* Pixel and machine */
+@import '@fontsource/press-start-2p/latin-400.css';
+@import '@fontsource/vt323/latin-400.css';
+@import '@fontsource/silkscreen/latin-400.css';
+@import '@fontsource/orbitron/latin-400.css';
+@import '@fontsource/audiowide/latin-400.css';
+@import '@fontsource/monoton/latin-400.css';
+
+/* Old world */
+@import '@fontsource/unifrakturmaguntia/latin-400.css';
+@import '@fontsource/pirata-one/latin-400.css';
+@import '@fontsource/new-rocker/latin-400.css';
+@import '@fontsource/rye/latin-400.css';

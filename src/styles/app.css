@@ -525,7 +525,31 @@ button {
    the whole bar shuffling sideways every time. */
 .bar__btn--wide {
   min-width: 62px;
+  /* And a ceiling, because the label is now sometimes "UnifrakturMaguntia".
+     Unbounded, a long name grows the bar's left half until the right half is
+     pushed out of the window. */
+  max-width: 124px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: center;
+}
+
+/*
+ * Tighter again where the docked sidebar takes 260px off the bar. "Lato" fits
+ * at every width down to the phone breakpoint; "American Typewriter" and
+ * "UnifrakturMaguntia" run 42px past the window at 760px and push History out
+ * of reach. The label is the cheapest thing to give up: the control stays put,
+ * and the full name is still on its tooltip and in the open menu.
+ *
+ * Below the base rule rather than up with the other rules for this band,
+ * because it carries the same specificity and would otherwise lose to the
+ * 124px ceiling above simply for coming first.
+ */
+@media (max-width: 1000px) and (min-width: 721px) {
+  .bar__btn--wide {
+    max-width: 62px;
+  }
 }
 
 .bar__menu {
@@ -600,6 +624,53 @@ button {
   font-family: var(--blank-ui-font);
   font-size: 13px;
   color: var(--blank-muted);
+}
+
+/*
+ * A display group's header. Set in the app's UI face, like Surprise me: it
+ * names a shelf rather than showing a specimen, and fifty specimen headings
+ * would be as hard to scan as the flat list they exist to break up.
+ */
+.bar__menu-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 6px;
+  text-align: left;
+  font-family: var(--blank-ui-font);
+  font-size: 13px;
+  color: var(--blank-muted);
+  white-space: nowrap;
+}
+
+.bar__menu-group:hover,
+.bar__menu-group:focus-visible {
+  background: var(--blank-panel-hover);
+  color: var(--blank-fg);
+  outline: none;
+}
+
+.bar__menu-caret {
+  display: inline-block;
+  width: 8px;
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.bar__menu-caret.is-open {
+  transform: rotate(90deg);
+}
+
+/* Pushed to the far edge: the count is a hint about the shelf, not part of
+   its name. */
+.bar__menu-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--blank-faint);
+  font-size: 12px;
 }
 
 .bar__sizes {

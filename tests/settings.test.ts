@@ -6,6 +6,9 @@ import {
   DEFAULT_SETTINGS,
   FONT_LABELS,
   FONT_STACKS,
+  TEXT_FONTS,
+  WILD_FONTS,
+  WILD_GROUPS,
   pickRandomFont,
 } from '../src/state/settings'
 
@@ -25,9 +28,39 @@ describe('the font pool', () => {
   })
 
   it('ends every stack in a generic family, so nothing renders as nothing', () => {
+    // cursive and fantasy are generics as much as the other three, and are the
+    // honest tail for a script or a horror face.
     for (const font of ALL_FONTS) {
-      expect(FONT_STACKS[font], font).toMatch(/(sans-serif|serif|monospace)$/)
+      expect(FONT_STACKS[font], font).toMatch(/(sans-serif|serif|monospace|cursive|fantasy)$/)
     }
+  })
+})
+
+describe('the display faces', () => {
+  it('groups every one of them exactly once', () => {
+    const grouped = WILD_GROUPS.flatMap((group) => group.fonts)
+    expect(grouped).toHaveLength(50)
+    expect(new Set(grouped).size, 'a face listed in two groups').toBe(50)
+    expect(new Set(WILD_FONTS)).toEqual(new Set(grouped))
+    for (const font of WILD_FONTS) expect(ALL_FONTS, font).toContain(font)
+  })
+
+  it('names its own bundled family first in the stack', () => {
+    // The silent failure this guards: a typo in the family name leaves the
+    // stack falling straight through to its fallback, so the menu offers
+    // "Creepster" and the page renders Chiller or plain sans. Nothing about
+    // that looks broken until you compare it with the specimen.
+    for (const font of WILD_FONTS) {
+      expect(FONT_STACKS[font], font).toMatch(new RegExp(`^'${FONT_LABELS[font]}',`))
+    }
+  })
+
+  it('keeps them out of the pool Random draws from', () => {
+    // Surprise me hands you a different page to write on. Nobody 300 words
+    // into a journal entry wants Nosifer.
+    for (const font of WILD_FONTS) expect(TEXT_FONTS, font).not.toContain(font)
+    expect(TEXT_FONTS.length).toBe(ALL_FONTS.length - WILD_FONTS.length)
+    expect(BAR_FONTS.every((font) => TEXT_FONTS.includes(font))).toBe(true)
   })
 })
 

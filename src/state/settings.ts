@@ -72,6 +72,72 @@ export const FONT_STACKS = {
   helvetica: "'Helvetica Neue', Helvetica, Arial, sans-serif",
   courier: "'Courier New', Courier, 'Nimbus Mono PS', monospace",
   consolas: "Consolas, 'Liberation Mono', Menlo, monospace",
+
+  // --- Display faces, all bundled (see styles/fonts.css) ------------------
+
+  /* Handwritten */
+  permanentmarker: "'Permanent Marker', 'Marker Felt', 'Segoe Print', cursive",
+  caveat: "'Caveat', 'Bradley Hand', 'Segoe Script', cursive",
+  indieflower: "'Indie Flower', 'Segoe Print', 'Bradley Hand', cursive",
+  shadowsintolight: "'Shadows Into Light', 'Segoe Script', cursive",
+  rocksalt: "'Rock Salt', Chalkduster, 'Segoe Print', cursive",
+  architectsdaughter: "'Architects Daughter', 'Bradley Hand', cursive",
+  gloriahallelujah: "'Gloria Hallelujah', 'Segoe Print', cursive",
+  patrickhand: "'Patrick Hand', 'Comic Sans MS', 'Chalkboard SE', cursive",
+  reeniebeanie: "'Reenie Beanie', 'Segoe Script', cursive",
+  homemadeapple: "'Homemade Apple', 'Snell Roundhand', cursive",
+
+  /* Script */
+  dancingscript: "'Dancing Script', 'Snell Roundhand', 'Segoe Script', cursive",
+  greatvibes: "'Great Vibes', 'Edwardian Script ITC', 'Snell Roundhand', cursive",
+  pacifico: "'Pacifico', 'Brush Script MT', cursive",
+  sacramento: "'Sacramento', 'Snell Roundhand', cursive",
+  satisfy: "'Satisfy', 'Brush Script MT', cursive",
+  courgette: "'Courgette', 'Segoe Script', cursive",
+  yellowtail: "'Yellowtail', 'Brush Script MT', cursive",
+
+  /* Poster */
+  anton: "'Anton', Impact, Haettenschweiler, sans-serif",
+  bebasneue: "'Bebas Neue', Impact, 'Arial Narrow', sans-serif",
+  alfaslabone: "'Alfa Slab One', 'Rockwell Extra Bold', Rockwell, serif",
+  abrilfatface: "'Abril Fatface', 'Bodoni MT', Didot, serif",
+  ultra: "'Ultra', 'Rockwell Extra Bold', Rockwell, serif",
+  titanone: "'Titan One', 'Cooper Black', 'Arial Black', sans-serif",
+  bowlbyone: "'Bowlby One', 'Cooper Black', 'Arial Black', sans-serif",
+  passionone: "'Passion One', Impact, 'Arial Black', sans-serif",
+  staatliches: "'Staatliches', Haettenschweiler, Impact, sans-serif",
+  archivoblack: "'Archivo Black', 'Arial Black', 'Helvetica Neue', sans-serif",
+
+  /* Playful */
+  bangers: "'Bangers', Impact, 'Comic Sans MS', fantasy",
+  chewy: "'Chewy', 'Comic Sans MS', fantasy",
+  fredoka: "'Fredoka', 'Comic Sans MS', 'Trebuchet MS', sans-serif",
+  righteous: "'Righteous', 'Century Gothic', 'Trebuchet MS', sans-serif",
+  luckiestguy: "'Luckiest Guy', 'Comic Sans MS', fantasy",
+  bungee: "'Bungee', Impact, fantasy",
+  baloo: "'Baloo 2', 'Comic Sans MS', 'Trebuchet MS', sans-serif",
+  lobster: "'Lobster', 'Brush Script MT', cursive",
+
+  /* Horror */
+  creepster: "'Creepster', Chiller, fantasy",
+  nosifer: "'Nosifer', Chiller, fantasy",
+  eater: "'Eater', Chiller, fantasy",
+  butcherman: "'Butcherman', Chiller, fantasy",
+  metalmania: "'Metal Mania', Chiller, fantasy",
+
+  /* Pixel and machine */
+  pressstart: "'Press Start 2P', 'Courier New', monospace",
+  vt323: "'VT323', 'Courier New', monospace",
+  silkscreen: "'Silkscreen', 'Courier New', monospace",
+  orbitron: "'Orbitron', Eurostile, 'Century Gothic', sans-serif",
+  audiowide: "'Audiowide', Eurostile, 'Century Gothic', sans-serif",
+  monoton: "'Monoton', Impact, fantasy",
+
+  /* Old world */
+  unifraktur: "'UnifrakturMaguntia', 'Old English Text MT', fantasy",
+  pirataone: "'Pirata One', 'Old English Text MT', fantasy",
+  newrocker: "'New Rocker', 'Old English Text MT', fantasy",
+  rye: "'Rye', Playbill, fantasy",
 } as const satisfies Record<string, string>
 
 export type FontChoice = keyof typeof FONT_STACKS
@@ -107,12 +173,109 @@ export const FONT_LABELS: Record<FontChoice, string> = {
   helvetica: 'Helvetica',
   courier: 'Courier',
   consolas: 'Consolas',
+
+  /* Handwritten */
+  permanentmarker: 'Permanent Marker',
+  caveat: 'Caveat',
+  indieflower: 'Indie Flower',
+  shadowsintolight: 'Shadows Into Light',
+  rocksalt: 'Rock Salt',
+  architectsdaughter: 'Architects Daughter',
+  gloriahallelujah: 'Gloria Hallelujah',
+  patrickhand: 'Patrick Hand',
+  reeniebeanie: 'Reenie Beanie',
+  homemadeapple: 'Homemade Apple',
+
+  /* Script */
+  dancingscript: 'Dancing Script',
+  greatvibes: 'Great Vibes',
+  pacifico: 'Pacifico',
+  sacramento: 'Sacramento',
+  satisfy: 'Satisfy',
+  courgette: 'Courgette',
+  yellowtail: 'Yellowtail',
+
+  /* Poster */
+  anton: 'Anton',
+  bebasneue: 'Bebas Neue',
+  alfaslabone: 'Alfa Slab One',
+  abrilfatface: 'Abril Fatface',
+  ultra: 'Ultra',
+  titanone: 'Titan One',
+  bowlbyone: 'Bowlby One',
+  passionone: 'Passion One',
+  staatliches: 'Staatliches',
+  archivoblack: 'Archivo Black',
+
+  /* Playful */
+  bangers: 'Bangers',
+  chewy: 'Chewy',
+  fredoka: 'Fredoka',
+  righteous: 'Righteous',
+  luckiestguy: 'Luckiest Guy',
+  bungee: 'Bungee',
+  baloo: 'Baloo 2',
+  lobster: 'Lobster',
+
+  /* Horror */
+  creepster: 'Creepster',
+  nosifer: 'Nosifer',
+  eater: 'Eater',
+  butcherman: 'Butcherman',
+  metalmania: 'Metal Mania',
+
+  /* Pixel and machine */
+  pressstart: 'Press Start 2P',
+  vt323: 'VT323',
+  silkscreen: 'Silkscreen',
+  orbitron: 'Orbitron',
+  audiowide: 'Audiowide',
+  monoton: 'Monoton',
+
+  /* Old world */
+  unifraktur: 'UnifrakturMaguntia',
+  pirataone: 'Pirata One',
+  newrocker: 'New Rocker',
+  rye: 'Rye',
 }
 
 /** The five the bottom bar spells out, in bar order. */
 export const BAR_FONTS: FontChoice[] = ['lato', 'arial', 'system', 'serif', 'mono']
 
 export const ALL_FONTS = Object.keys(FONT_STACKS) as FontChoice[]
+
+/**
+ * The display faces, in the groups the typeface menu draws them in.
+ *
+ * Grouped rather than listed flat because fifty decorative faces in one column
+ * is a wall: "Horror" and "Pixel and machine" tell you in two words whether the
+ * next six entries are worth unfolding. The menu keeps each group shut until
+ * asked, which also means a browser downloads only the faces of the group you
+ * opened rather than all fifty at once.
+ */
+export const WILD_GROUPS: ReadonlyArray<{ label: string; fonts: FontChoice[] }> = [
+  { label: 'Handwritten', fonts: ['permanentmarker', 'caveat', 'indieflower', 'shadowsintolight', 'rocksalt', 'architectsdaughter', 'gloriahallelujah', 'patrickhand', 'reeniebeanie', 'homemadeapple'] },
+  { label: 'Script', fonts: ['dancingscript', 'greatvibes', 'pacifico', 'sacramento', 'satisfy', 'courgette', 'yellowtail'] },
+  { label: 'Poster', fonts: ['anton', 'bebasneue', 'alfaslabone', 'abrilfatface', 'ultra', 'titanone', 'bowlbyone', 'passionone', 'staatliches', 'archivoblack'] },
+  { label: 'Playful', fonts: ['bangers', 'chewy', 'fredoka', 'righteous', 'luckiestguy', 'bungee', 'baloo', 'lobster'] },
+  { label: 'Horror', fonts: ['creepster', 'nosifer', 'eater', 'butcherman', 'metalmania'] },
+  { label: 'Pixel and machine', fonts: ['pressstart', 'vt323', 'silkscreen', 'orbitron', 'audiowide', 'monoton'] },
+  { label: 'Old world', fonts: ['unifraktur', 'pirataone', 'newrocker', 'rye'] },
+]
+
+/** Every display face, ungrouped. */
+export const WILD_FONTS: FontChoice[] = WILD_GROUPS.flatMap((group) => group.fonts)
+
+/**
+ * The pool Random draws from: the text faces only.
+ *
+ * Surprise me is a "give me a different page to write on" button, and someone
+ * three hundred words into a journal entry does not want Nosifer. The display
+ * faces are reached deliberately, from their own groups in the menu, which is
+ * also why none of them needs the availability measurement below: they are
+ * bundled, so they are simply always there.
+ */
+export const TEXT_FONTS: FontChoice[] = ALL_FONTS.filter((font) => !WILD_FONTS.includes(font))
 
 // --- Random -----------------------------------------------------------------
 
@@ -172,7 +335,7 @@ export async function randomCandidates(): Promise<FontChoice[]> {
   const seen = new Set<string>()
   const pool: FontChoice[] = []
 
-  for (const font of ALL_FONTS) {
+  for (const font of TEXT_FONTS) {
     const stack = FONT_STACKS[font]
     const installed = generics.every((generic, index) => {
       const fallback = genericWidths[index]
