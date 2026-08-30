@@ -427,11 +427,19 @@ button.sidebar__path--link:focus-visible .sidebar__path-arrow {
   font-size: 13px;
   color: var(--blank-fg);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 5px;
+  transition: padding 140ms ease;
+}
+
+.entry__title-text {
+  /* Shrinks and ellipsizes inside the flex row; padding on the parent is what
+     squeezes it, so the dots appear exactly where the actions begin. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entry__flag {
@@ -498,10 +506,6 @@ button.sidebar__path--link:focus-visible .sidebar__path-arrow {
   visibility: visible;
   transform: none;
   transition: opacity 140ms ease, transform 140ms ease;
-}
-
-.entry__title {
-  transition: padding 140ms ease;
 }
 
 .entry:hover .entry__title,

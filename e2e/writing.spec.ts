@@ -189,6 +189,26 @@ test.describe('row actions', () => {
     await expect(row.getByTitle('Delete this entry')).toBeVisible()
   })
 
+  test('a long title gives way to the actions instead of running under them', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('A title long enough that it must be cut short somewhere sensible')
+    await page.waitForTimeout(900)
+
+    const row = page.locator('.entry').first()
+    // The old row tooltip popped up over the preview on every hover; gone.
+    expect(await row.getAttribute('title')).toBeNull()
+
+    await row.hover()
+    await expect(row.locator('.entry__actions')).toBeVisible()
+    // Let the padding transition settle before measuring.
+    await page.waitForTimeout(250)
+
+    const title = await row.locator('.entry__title-text').boundingBox()
+    const actions = await row.locator('.entry__actions').boundingBox()
+    if (!title || !actions) throw new Error('row pieces missing')
+    expect(title.x + title.width).toBeLessThanOrEqual(actions.x + 1)
+  })
+
   test('the download button saves the entry as a PDF', async ({ page }) => {
     await freshApp(page)
     await page.keyboard.type('Field notes\n\nThe river moved twelve feet since March.')

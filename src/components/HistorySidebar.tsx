@@ -199,7 +199,6 @@ function EntryRow({
         onTogglePin()
       }}
       onMouseLeave={disarm}
-      title="Click to open · right-click to pin or unpin"
     >
       <span className="entry__title">
         {meta.favorite && (
@@ -207,7 +206,9 @@ function EntryRow({
             ★
           </span>
         )}
-        {meta.displayTitle}
+        {/* Its own flex item, because a bare text node in a flex row cannot
+            shrink or ellipsize — it just runs under the action buttons. */}
+        <span className="entry__title-text">{meta.displayTitle}</span>
       </span>
 
       <span className="entry__meta">
