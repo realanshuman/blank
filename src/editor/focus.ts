@@ -1,5 +1,11 @@
 import { RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
-import { Decoration, EditorView, ViewPlugin, type DecorationSet } from '@codemirror/view'
+import {
+  Decoration,
+  EditorView,
+  ViewPlugin,
+  type DecorationSet,
+  type ViewUpdate,
+} from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
 export type FocusScope = 'off' | 'sentence' | 'paragraph' | 'line'
@@ -125,8 +131,16 @@ const focusPlugin = ViewPlugin.fromClass(
       this.decorations = buildDecorations(view)
     }
 
-    update(update: { view: EditorView; docChanged: boolean; selectionSet: boolean; viewportChanged: boolean }) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+    update(update: ViewUpdate) {
+      // Turning focus mode on is a transaction that changes neither the
+      // document nor the selection nor the viewport, so watching only those
+      // three left the switch doing nothing until the next keystroke moved the
+      // cursor and incidentally triggered a rebuild.
+      const scopeChanged =
+        update.startState.field(focusScopeField, false) !==
+        update.state.field(focusScopeField, false)
+
+      if (update.docChanged || update.selectionSet || update.viewportChanged || scopeChanged) {
         this.decorations = buildDecorations(update.view)
       }
     }

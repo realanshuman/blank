@@ -107,7 +107,11 @@ export function markdownStyling(): Extension {
  * still stored and still renders on export — it is simply never shown styled.
  */
 export const plainStyling: Extension = EditorView.theme({
-  '.cm-content *': {
+  // Everything except the focus-mode dimming, which is not markdown styling
+  // and must survive here: `color: inherit !important` was overriding it, so
+  // focus mode did nothing at all while the canvas was plain. Children of a
+  // dimmed span still match, and inherit the dimmed colour, which is right.
+  '.cm-content *:not(.cm-blank-dimmed)': {
     fontSize: 'inherit !important',
     fontWeight: 'inherit !important',
     fontStyle: 'normal !important',

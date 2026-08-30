@@ -377,6 +377,14 @@ test.describe('focus mode', () => {
     await page.keyboard.type('First sentence here. Second sentence here. Third one now.')
 
     await page.getByTitle('Dim everything but the current sentence').click()
+
+    // Nothing touches the editor between the toggle and this assertion, on
+    // purpose. Turning focus on changes neither document nor selection nor
+    // viewport, and the decorations were once only rebuilt on those three, so
+    // the switch appeared dead until the next keystroke. Clicking back into the
+    // canvas first would hide that entirely.
+    await expect(page.locator('.cm-blank-dimmed').first()).toBeVisible()
+
     await page.locator('.cm-content').click()
     await page.keyboard.press('End')
     await page.waitForTimeout(300)
@@ -400,5 +408,33 @@ test.describe('focus mode', () => {
 
     expect(undimmed.trim()).not.toBe('')
     expect(undimmed).toContain('Third one now.')
+  })
+
+  test('still dims when the canvas is plain', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('First sentence here. Second sentence here. Third one now.')
+
+    await page.getByTitle('Render markdown as you type').click()
+    await expect(page.getByTitle('Render markdown as you type')).toHaveText('Plain')
+    await page.getByTitle('Dim everything but the current sentence').click()
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('End')
+    await page.waitForTimeout(300)
+
+    // The plain canvas flattens every span with `color: inherit !important`,
+    // which silently beat the dimming: the decoration was there and painted in
+    // full-strength ink. Assert the colour, not just the element.
+    const dimmed = page.locator('.cm-blank-dimmed').first()
+    await expect(dimmed).toBeVisible()
+
+    const [dimColour, bodyColour] = await page.evaluate(() => {
+      const node = document.querySelector('.cm-blank-dimmed')
+      const line = document.querySelector('.cm-line')
+      return [
+        node ? getComputedStyle(node).color : '',
+        line ? getComputedStyle(line).color : '',
+      ]
+    })
+    expect(dimColour).not.toBe(bodyColour)
   })
 })
