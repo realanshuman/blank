@@ -267,6 +267,33 @@ button {
 .cm-blank-code-open {
   border-radius: 6px 6px 0 0;
   padding-top: 6px;
+  /* Anchors the copy control to this line's right edge. */
+  position: relative;
+}
+
+.cm-blank-copy {
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-family: var(--blank-ui-font);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--blank-faint);
+  background: var(--blank-code-bg);
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.cm-blank-code-open:hover .cm-blank-copy,
+.cm-blank-copy:hover,
+.cm-blank-copy:focus-visible {
+  color: var(--blank-fg);
+  background: var(--blank-panel-active);
+}
+
+.cm-blank-copy.is-done {
+  color: var(--blank-fg);
 }
 
 .cm-blank-code-close {

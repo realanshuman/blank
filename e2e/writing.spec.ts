@@ -253,6 +253,24 @@ test.describe('code blocks', () => {
   })
 })
 
+test.describe('code blocks', () => {
+  test('copy a block without its fences', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    await freshApp(page)
+    await page.keyboard.type('Notes.\n\n```ts\nconst ok = await retry(3)\nreturn ok\n')
+    await page.waitForTimeout(1500)
+
+    await expect(page.locator('.cm-blank-copy')).toHaveCount(1)
+    await page.locator('.cm-blank-copy').click()
+    await expect(page.locator('.cm-blank-copy')).toHaveText('Copied')
+
+    // The fence line itself must not come along: nobody wants ```ts pasted
+    // into a terminal.
+    const clipboard = await page.evaluate(() => navigator.clipboard.readText())
+    expect(clipboard).toBe('const ok = await retry(3)\nreturn ok')
+  })
+})
+
 test.describe('the history sidebar', () => {
   test('slides out and back rather than blinking in and out', async ({ page }) => {
     await freshApp(page)
