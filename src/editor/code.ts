@@ -85,7 +85,10 @@ export const codeHighlight = HighlightStyle.define([
   { tag: [tags.comment, tags.lineComment, tags.blockComment], color: 'var(--blank-code-comment)', fontStyle: 'italic' },
   { tag: [tags.keyword, tags.controlKeyword, tags.moduleKeyword, tags.operatorKeyword], color: 'var(--blank-code-keyword)' },
   { tag: [tags.string, tags.special(tags.string), tags.regexp], color: 'var(--blank-code-string)' },
-  { tag: [tags.number, tags.bool, tags.null, tags.atom], color: 'var(--blank-code-number)' },
+  // Not tags.atom: markdown tokenises a task list's [ ] marker as an atom, so
+  // including it here paints code colours onto prose, which is exactly the
+  // leak these features are supposed to avoid.
+  { tag: [tags.number, tags.bool, tags.null], color: 'var(--blank-code-number)' },
   { tag: [tags.function(tags.variableName), tags.function(tags.propertyName), tags.definition(tags.function(tags.variableName))], color: 'var(--blank-code-name)' },
   { tag: [tags.typeName, tags.className, tags.tagName, tags.namespace], color: 'var(--blank-code-name)' },
   { tag: [tags.attributeName, tags.propertyName], color: 'var(--blank-code-attr)' },

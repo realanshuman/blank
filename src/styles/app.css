@@ -301,6 +301,27 @@ button {
   padding-bottom: 6px;
 }
 
+/*
+ * Task list markers. The three characters stay exactly as they are in the
+ * file; they simply become a target. A finished line recedes rather than being
+ * struck through, which stays readable when a list is mostly done.
+ */
+.cm-blank-task {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0 1px;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.cm-blank-task:hover {
+  color: var(--blank-fg);
+  background: var(--blank-panel-active);
+}
+
+.cm-blank-task-done {
+  color: var(--blank-muted);
+}
+
 /* ---------------------------------------------------------------------------
    Bottom bar
    --------------------------------------------------------------------------- */

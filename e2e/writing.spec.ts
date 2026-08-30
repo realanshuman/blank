@@ -271,6 +271,41 @@ test.describe('code blocks', () => {
   })
 })
 
+test.describe('task lists', () => {
+  test('tick and untick from the marker, rewriting the file', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Standup\n\n- [ ] chase the retry bug\n- [x] write the postmortem\n')
+    await page.waitForTimeout(500)
+
+    await expect(page.locator('.cm-blank-task')).toHaveCount(2)
+    await expect(page.locator('.cm-blank-task-done')).toHaveCount(1)
+
+    // The marker is not swapped for a widget: what is on screen is the three
+    // characters that are in the file, so ticking is a text edit.
+    await page.locator('.cm-blank-task').first().click()
+    await expect(page.locator('.cm-blank-task-done')).toHaveCount(2)
+    await expect(page.locator('.cm-content')).toContainText('- [x] chase the retry bug')
+
+    await page.locator('.cm-blank-task').first().click()
+    await expect(page.locator('.cm-blank-task-done')).toHaveCount(1)
+    await expect(page.locator('.cm-content')).toContainText('- [ ] chase the retry bug')
+  })
+
+  test('do not borrow the code palette', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('- [ ] a plain task\n')
+    await page.waitForTimeout(400)
+
+    // Markdown tokenises the marker as an atom, the same tag a language uses
+    // for a literal, so a careless code palette paints prose with code colours.
+    const marker = await page
+      .locator('.cm-blank-task')
+      .first()
+      .evaluate((node) => getComputedStyle(node).color)
+    expect(marker).not.toBe('rgb(168, 86, 10)')
+  })
+})
+
 test.describe('the history sidebar', () => {
   test('slides out and back rather than blinking in and out', async ({ page }) => {
     await freshApp(page)

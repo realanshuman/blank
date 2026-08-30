@@ -1,6 +1,7 @@
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { codeLanguages } from './code'
 import { codeBlocks } from './codeblock'
+import { taskLists } from './tasks'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import {
@@ -58,6 +59,7 @@ function extensions(options: EditorOptions): Extension[] {
 
     editorTheme,
     codeBlocks(),
+    taskLists(),
     focusMode(),
     typewriterScrolling(),
     hardcoreMode(),
