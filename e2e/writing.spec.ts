@@ -266,8 +266,8 @@ test.describe('selection', () => {
     expect(await selectionColour(page)).not.toBe(lavender)
 
     // light -> sepia -> dark
-    await page.getByTitle('Light, sepia, dark').click()
-    await page.getByTitle('Light, sepia, dark').click()
+    await page.getByTitle('Light, sepia, dark, black').click()
+    await page.getByTitle('Light, sepia, dark, black').click()
     expect(await selectionColour(page)).toBe('rgb(59, 90, 127)')
   })
 })
@@ -452,12 +452,34 @@ test.describe('settings', () => {
     await page.getByTitle('Cycle text size').click()
     await expect(page.getByTitle('Cycle text size')).toHaveText('20px')
 
-    await page.getByTitle('Light, sepia, dark').click()
+    await page.getByTitle('Light, sepia, dark, black').click()
     await page.reload()
     await page.waitForSelector('.cm-content')
 
     await expect(page.getByTitle('Cycle text size')).toHaveText('20px')
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'sepia')
+  })
+
+  test('the theme control walks light to black and back round', async ({ page }) => {
+    await freshApp(page)
+    const toggle = page.getByTitle('Light, sepia, dark, black')
+    const html = page.locator('html')
+
+    await expect(html).toHaveAttribute('data-theme', 'light')
+    for (const expected of ['sepia', 'dark', 'black', 'light']) {
+      await toggle.click()
+      await expect(html).toHaveAttribute('data-theme', expected)
+    }
+
+    // Black is not simply a darker dark: the page is actually black.
+    await toggle.click()
+    await toggle.click()
+    await toggle.click()
+    await expect(html).toHaveAttribute('data-theme', 'black')
+    await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)')
+
+    // And the control draws an icon rather than borrowing a platform glyph.
+    await expect(toggle.locator('svg')).toBeVisible()
   })
 })
 

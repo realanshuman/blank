@@ -1,6 +1,6 @@
 import type { FocusScope } from '../editor/focus'
 
-export type ThemeChoice = 'light' | 'dark' | 'sepia' | 'system'
+export type ThemeChoice = 'light' | 'sepia' | 'dark' | 'black' | 'system'
 
 export interface Settings {
   fontSize: number
@@ -242,7 +242,13 @@ function isFontChoice(value: unknown): value is FontChoice {
 }
 
 function isThemeChoice(value: unknown): value is ThemeChoice {
-  return value === 'light' || value === 'dark' || value === 'sepia' || value === 'system'
+  return (
+    value === 'light' ||
+    value === 'sepia' ||
+    value === 'dark' ||
+    value === 'black' ||
+    value === 'system'
+  )
 }
 
 function isFocusScope(value: unknown): value is FocusScope {

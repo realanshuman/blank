@@ -62,6 +62,29 @@
   --blank-danger: #e0655a;
 }
 
+/*
+ * Not a darker dark: the background is actually #000, which is what an OLED
+ * panel switches off for. The panel sits a hair above it so the sidebar still
+ * has an edge, and the rules stay very low contrast, or pure black stops
+ * looking like one surface and starts looking like a grid.
+ */
+:root[data-theme='black'] {
+  --blank-bg: #000000;
+  --blank-fg: #e8e8e8;
+  --blank-muted: #8c8c8c;
+  --blank-faint: #4d4d4d;
+  --blank-dimmed: #3a3a3a;
+  --blank-caret: #e8e8e8;
+  --blank-accent: #7aa7d9;
+  --blank-selection: #2f4a6b;
+  --blank-code-bg: #141414;
+  --blank-rule: #1c1c1c;
+  --blank-panel: #0a0a0a;
+  --blank-panel-hover: #171717;
+  --blank-panel-active: #202020;
+  --blank-danger: #e0655a;
+}
+
 :root[data-theme='sepia'] {
   --blank-bg: #f5efe2;
   --blank-fg: #3a3128;
@@ -120,7 +143,8 @@ body {
  * Light-on-dark text blooms with subpixel rendering, so dark switches to
  * grayscale antialiasing, which is why this rule ever existed.
  */
-:root[data-theme='dark'] body {
+:root[data-theme='dark'] body,
+:root[data-theme='black'] body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -280,6 +304,13 @@ button {
 .bar__btn:focus-visible {
   outline: 2px solid var(--blank-accent);
   outline-offset: 1px;
+}
+
+.bar__btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
 }
 
 .bar__btn--running {

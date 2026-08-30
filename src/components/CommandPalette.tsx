@@ -145,7 +145,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         section: 'Canvas',
         run: () => store.updateSettings({ focusScope: scope }),
       })),
-      ...(['light', 'sepia', 'dark', 'system'] as const).map((theme) => ({
+      ...(['light', 'sepia', 'dark', 'black', 'system'] as const).map((theme) => ({
         id: `theme-${theme}`,
         label: `Theme: ${theme}`,
         section: 'Appearance',

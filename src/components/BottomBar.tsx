@@ -7,6 +7,7 @@ import {
   FONT_LABELS,
   FONT_SIZES,
   FONT_STACKS,
+  effectiveTheme,
   pickRandomFont,
   randomCandidates,
   type FontChoice,
@@ -47,6 +48,72 @@ function SessionRate() {
 }
 
 const EXTRA_FONTS = ALL_FONTS.filter((font) => !BAR_FONTS.includes(font))
+
+/**
+ * The four themes as one progression: a full sun, a half, a crescent, then a
+ * disc with no light left in it. Drawn rather than typed, because the glyphs
+ * these replace (a sun, a half circle, a moon) render at whatever weight and
+ * baseline each platform's emoji font decides, which is why they never quite
+ * lined up with the text beside them.
+ */
+const ICON_PROPS = {
+  viewBox: '0 0 16 16',
+  width: 14,
+  height: 14,
+  'aria-hidden': true,
+} as const
+
+function SunIcon() {
+  return (
+    <svg {...ICON_PROPS} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <circle cx="8" cy="8" r="3.1" />
+      <path d="M8 1.3v1.5M8 13.2v1.5M14.7 8h-1.5M2.8 8H1.3M12.74 3.26l-1.06 1.06M4.32 11.68l-1.06 1.06M12.74 12.74l-1.06-1.06M4.32 4.32L3.26 3.26" />
+    </svg>
+  )
+}
+
+function HalfIcon() {
+  return (
+    <svg {...ICON_PROPS} fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="8" cy="8" r="5.5" />
+      <path d="M8 2.5a5.5 5.5 0 0 0 0 11z" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg
+      {...ICON_PROPS}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinejoin="round"
+    >
+      <path d="M13.3 9.7A5.9 5.9 0 0 1 6.3 2.7a5.9 5.9 0 1 0 7 7z" />
+    </svg>
+  )
+}
+
+function DiscIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      {/* Smaller than the outlined icons: a solid disc at their radius
+          carries far more ink and would sit heavier than the rest. */}
+      <circle cx="8" cy="8" r="4.6" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** Lightest to darkest, which is also the order the button walks through. */
+const THEME_CYCLE = ['light', 'sepia', 'dark', 'black'] as const
+
+const THEME_ICONS = {
+  light: SunIcon,
+  sepia: HalfIcon,
+  dark: MoonIcon,
+  black: DiscIcon,
+} as const
 
 /**
  * One control instead of a row of six.
@@ -249,10 +316,12 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   }
 
   const cycleTheme = () => {
-    const order = ['light', 'sepia', 'dark'] as const
-    const index = order.indexOf(settings.theme as (typeof order)[number])
-    updateSettings({ theme: order[(index + 1) % order.length] ?? 'light' })
+    const index = THEME_CYCLE.indexOf(settings.theme as (typeof THEME_CYCLE)[number])
+    updateSettings({ theme: THEME_CYCLE[(index + 1) % THEME_CYCLE.length] ?? 'light' })
   }
+
+  // `system` resolves to one of the four, so it still gets an icon.
+  const ThemeIcon = THEME_ICONS[effectiveTheme(settings.theme) as keyof typeof THEME_ICONS]
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -351,8 +420,13 @@ export function BottomBar({ onOpenPalette }: { onOpenPalette: () => void }) {
           </button>
           <Separator />
 
-          <button className="bar__btn" onClick={cycleTheme} title="Light, sepia, dark">
-            {settings.theme === 'dark' ? '☾' : settings.theme === 'sepia' ? '◐' : '☀'}
+          <button
+            className="bar__btn bar__btn--icon"
+            onClick={cycleTheme}
+            title="Light, sepia, dark, black"
+            aria-label={`Theme: ${effectiveTheme(settings.theme)}`}
+          >
+            <ThemeIcon />
           </button>
           <Separator />
 
