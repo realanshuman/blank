@@ -22,6 +22,16 @@ async function freshApp(page: Page) {
 
 const text = () => (element: Element) => element.textContent ?? ''
 
+/**
+ * Markdown, Chat, Focus, Backspace and Fullscreen live behind the ••• menu in
+ * the bar, so reaching one means opening that first. The menu closes on
+ * select, which is why each of these is a fresh open.
+ */
+async function writingControl(page: Page, title: string) {
+  await page.getByTitle('Writing controls').click()
+  return page.getByTitle(title)
+}
+
 test.describe('the writing canvas', () => {
   test('opens blank, with the placeholder from the original', async ({ page }) => {
     await freshApp(page)
@@ -66,8 +76,9 @@ test.describe('live markdown', () => {
 
     // ...and turning it off leaves the text itself untouched.
     const before = await page.locator('.cm-content').evaluate(text())
-    await page.getByTitle('Render markdown as you type').click()
-    await expect(page.getByTitle('Render markdown as you type')).toHaveText('Plain')
+    await (await writingControl(page, 'Render markdown as you type')).click()
+    await expect(await writingControl(page, 'Render markdown as you type')).toHaveText('Plain')
+    await page.keyboard.press('Escape')
     const after = await page.locator('.cm-content').evaluate(text())
     expect(after).toBe(before)
 
@@ -85,10 +96,11 @@ test.describe('hardcore mode', () => {
     await freshApp(page)
     await page.keyboard.type('This sentence must survive everything.')
 
-    await page.getByTitle('When off, the text can only grow, with no deleting').click()
+    await (await writingControl(page, 'When off, the text can only grow, with no deleting')).click()
     await expect(
-      page.getByTitle('When off, the text can only grow, with no deleting'),
+      await writingControl(page, 'When off, the text can only grow, with no deleting'),
     ).toHaveText('Backspace is Off')
+    await page.keyboard.press('Escape')
 
     await page.locator('.cm-content').click()
     const before = await page.locator('.cm-content').evaluate(text())
@@ -114,11 +126,58 @@ test.describe('hardcore mode', () => {
   test('still allows typing forward', async ({ page }) => {
     await freshApp(page)
     await page.keyboard.type('Start.')
-    await page.getByTitle('When off, the text can only grow, with no deleting').click()
+    await (await writingControl(page, 'When off, the text can only grow, with no deleting')).click()
     await page.locator('.cm-content').click()
     await page.keyboard.press('End')
     await page.keyboard.type(' And more.')
     await expect(page.locator('.cm-content')).toContainText('Start. And more.')
+  })
+})
+
+test.describe('the bottom bar', () => {
+  test('fits inside its container at every width, rather than clipping', async ({ page }) => {
+    await freshApp(page)
+
+    // The bar used to lay out wider than the space it had. Nothing wrapped and
+    // nothing scrolled, so its right-hand end was simply cut off: History and
+    // the palette became unreachable in a narrow window.
+    for (const width of [1440, 1280, 1100, 900, 760]) {
+      await page.setViewportSize({ width, height: 700 })
+      await page.waitForTimeout(200)
+      const clipped = await page
+        .locator('.bar')
+        .evaluate((bar) => bar.scrollWidth > bar.clientWidth + 1)
+      expect(clipped, `bar clipped at ${width}px`).toBe(false)
+
+      // And the last control in the bar is actually on screen.
+      await expect(page.getByTitle('Toggle history')).toBeInViewport()
+    }
+  })
+
+  test('keeps the typeface reachable at every width', async ({ page }) => {
+    await freshApp(page)
+
+    // The row of named fonts used to vanish wholesale below 1100px, which is
+    // exactly when a cramped window makes you want a smaller face.
+    for (const width of [1440, 1100, 900, 760]) {
+      await page.setViewportSize({ width, height: 700 })
+      await page.waitForTimeout(200)
+      await expect(page.getByTitle('Choose a typeface')).toBeVisible()
+    }
+  })
+
+  test('the type menu picks a font and a size', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Some words to look at')
+
+    await page.getByTitle('Choose a typeface').click()
+    await page.getByRole('button', { name: 'Georgia', exact: true }).click()
+    await expect(page.getByTitle('Choose a typeface')).toHaveText('Georgia')
+    await expect(page.locator('.cm-content')).toHaveCSS('font-family', /Georgia/)
+
+    await page.getByTitle('Choose a typeface').click()
+    await page.getByTitle('24px').click()
+    await expect(page.locator('.cm-content')).toHaveCSS('font-size', '24px')
   })
 })
 
@@ -376,7 +435,7 @@ test.describe('focus mode', () => {
     await freshApp(page)
     await page.keyboard.type('First sentence here. Second sentence here. Third one now.')
 
-    await page.getByTitle('Dim everything but the current sentence').click()
+    await (await writingControl(page, 'Dim everything but the current sentence')).click()
 
     // Nothing touches the editor between the toggle and this assertion, on
     // purpose. Turning focus on changes neither document nor selection nor
@@ -414,9 +473,10 @@ test.describe('focus mode', () => {
     await freshApp(page)
     await page.keyboard.type('First sentence here. Second sentence here. Third one now.')
 
-    await page.getByTitle('Render markdown as you type').click()
-    await expect(page.getByTitle('Render markdown as you type')).toHaveText('Plain')
-    await page.getByTitle('Dim everything but the current sentence').click()
+    await (await writingControl(page, 'Render markdown as you type')).click()
+    await expect(await writingControl(page, 'Render markdown as you type')).toHaveText('Plain')
+    await page.keyboard.press('Escape')
+    await (await writingControl(page, 'Dim everything but the current sentence')).click()
     await page.locator('.cm-content').click()
     await page.keyboard.press('End')
     await page.waitForTimeout(300)
