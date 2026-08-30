@@ -43,6 +43,12 @@
   --blank-panel-hover: #f0f0f0;
   --blank-panel-active: #e9e9e9;
   --blank-danger: #b13c2e;
+  --blank-code-comment: #8a8a8a;
+  --blank-code-keyword: #8b3fbf;
+  --blank-code-string: #1a7f4a;
+  --blank-code-number: #a8560a;
+  --blank-code-name: #1f5fbf;
+  --blank-code-attr: #7a4bbd;
 }
 
 :root[data-theme='dark'] {
@@ -60,6 +66,12 @@
   --blank-panel-hover: #23232a;
   --blank-panel-active: #2a2a32;
   --blank-danger: #e0655a;
+  --blank-code-comment: #6f6f79;
+  --blank-code-keyword: #c99ae8;
+  --blank-code-string: #7fc99a;
+  --blank-code-number: #e0a86a;
+  --blank-code-name: #85b4e8;
+  --blank-code-attr: #b9a3e8;
 }
 
 /*
@@ -83,6 +95,12 @@
   --blank-panel-hover: #171717;
   --blank-panel-active: #202020;
   --blank-danger: #e0655a;
+  --blank-code-comment: #6a6a6a;
+  --blank-code-keyword: #cb9df0;
+  --blank-code-string: #82cf9d;
+  --blank-code-number: #e5ac6d;
+  --blank-code-name: #88b8ef;
+  --blank-code-attr: #bda7ef;
 }
 
 :root[data-theme='sepia'] {
@@ -100,6 +118,12 @@
   --blank-panel-hover: #e9e0ce;
   --blank-panel-active: #e2d8c4;
   --blank-danger: #a63d2a;
+  --blank-code-comment: #9c8f7a;
+  --blank-code-keyword: #8a4a86;
+  --blank-code-string: #4a7a45;
+  --blank-code-number: #9a5b2c;
+  --blank-code-name: #3f6a94;
+  --blank-code-attr: #7a5090;
 }
 
 * {
@@ -225,6 +249,29 @@ button {
 .canvas .cm-editor.cm-blank-typewriter .cm-content {
   padding-top: var(--blank-scroll-padding);
   padding-bottom: var(--blank-scroll-padding);
+}
+
+/*
+ * Fenced code blocks. Present only when the writing contains one, which is the
+ * rule for every developer-facing thing here: nothing in the interface
+ * advertises code until the text asks for it.
+ */
+.cm-blank-code {
+  font-family: var(--blank-mono);
+  font-size: 0.9em;
+  background: var(--blank-code-bg);
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.cm-blank-code-open {
+  border-radius: 6px 6px 0 0;
+  padding-top: 6px;
+}
+
+.cm-blank-code-close {
+  border-radius: 0 0 6px 6px;
+  padding-bottom: 6px;
 }
 
 /* ---------------------------------------------------------------------------

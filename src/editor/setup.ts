@@ -1,4 +1,6 @@
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { codeLanguages } from './code'
+import { codeBlocks } from './codeblock'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import {
@@ -48,10 +50,14 @@ function extensions(options: EditorOptions): Extension[] {
     EditorState.allowMultipleSelections.of(true),
     placeholder(PLACEHOLDER),
 
-    markdown({ base: markdownLanguage, addKeymap: false }),
+    // codeLanguages is what turns a fenced block into a parsed sub-document.
+    // Each grammar is lazily imported, so this costs nothing until a fence
+    // with a language on it actually appears in the text.
+    markdown({ base: markdownLanguage, addKeymap: false, codeLanguages }),
     stylingCompartment.of(options.liveMarkdown ? markdownStyling() : plainStyling),
 
     editorTheme,
+    codeBlocks(),
     focusMode(),
     typewriterScrolling(),
     hardcoreMode(),

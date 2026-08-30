@@ -1,6 +1,7 @@
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { EditorView } from '@codemirror/view'
 import { tags } from '@lezer/highlight'
+import { codeHighlight } from './code'
 import type { Extension } from '@codemirror/state'
 
 /**
@@ -99,7 +100,10 @@ const markdownHighlight = HighlightStyle.define([
 
 /** The live-markdown layer, omitted entirely when styling is switched off. */
 export function markdownStyling(): Extension {
-  return syntaxHighlighting(markdownHighlight)
+  // Code colours ride with the markdown layer on purpose. Switching to the
+  // plain canvas promises one uniform page, and a syntax-coloured block in
+  // the middle of it would not be that.
+  return [syntaxHighlighting(markdownHighlight), syntaxHighlighting(codeHighlight)]
 }
 
 /**

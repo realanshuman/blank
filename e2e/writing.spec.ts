@@ -210,6 +210,49 @@ test.describe('persistence', () => {
   })
 })
 
+test.describe('code blocks', () => {
+  test('stay completely absent until the writing asks for one', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Just prose. Nothing here is code, not even `this`.')
+    await page.waitForTimeout(400)
+
+    // The whole design rule for the developer features: someone writing prose
+    // never meets them.
+    await expect(page.locator('.cm-blank-code')).toHaveCount(0)
+  })
+
+  test('become monospace and syntax coloured on a fenced block', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Notes.\n\n```ts\n')
+    await page.keyboard.type('// swallowed it\nconst ok = await retry(3)\n')
+    // The grammar is fetched on demand, so the colour arrives after a reparse.
+    await page.waitForTimeout(1500)
+
+    await expect(page.locator('.cm-blank-code').first()).toBeVisible()
+
+    const shades = await page.evaluate(() => {
+      const found: Record<string, string> = {}
+      for (const span of document.querySelectorAll('.cm-line span')) {
+        const label = (span.textContent ?? '').trim()
+        if (label.startsWith('//')) found['comment'] = getComputedStyle(span).color
+        if (label === 'const') found['keyword'] = getComputedStyle(span).color
+      }
+      const line = document.querySelector('.cm-line')
+      found['body'] = line ? getComputedStyle(line).color : ''
+      const block = document.querySelector('.cm-blank-code')
+      found['font'] = block ? getComputedStyle(block).fontFamily : ''
+      return found
+    })
+
+    // Keyword and comment must each differ from body text, or the grammar
+    // never loaded and this is just plain text on a grey ground.
+    expect(shades['keyword']).toBeTruthy()
+    expect(shades['keyword']).not.toBe(shades['body'])
+    expect(shades['comment']).not.toBe(shades['body'])
+    expect(shades['font']).toMatch(/mono/i)
+  })
+})
+
 test.describe('the history sidebar', () => {
   test('slides out and back rather than blinking in and out', async ({ page }) => {
     await freshApp(page)
