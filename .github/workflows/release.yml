@@ -12,6 +12,11 @@ on:
         description: 'Tag to release (e.g. v0.1.0). Created if missing.'
         required: true
         default: 'v0.1.0'
+      prerelease:
+        description: 'Mark as a pre-release. GitHub keeps releases/latest off these, so the download link on the landing page stays on the last stable build.'
+        type: boolean
+        required: false
+        default: false
 
 # The release job pushes a GitHub Release, so it needs write access.
 permissions:
@@ -142,5 +147,8 @@ jobs:
           # Published, not draft: a draft release's assets 404 for anyone who is
           # not the repo owner, which would break the download link on the site.
           releaseDraft: false
-          prerelease: false
+          # A test build cut from a branch must not become releases/latest:
+          # that is what the landing page's download button resolves to, so
+          # every visitor would get the experimental one.
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           args: ${{ matrix.target != '' && format('--target {0}', matrix.target) || '' }}
