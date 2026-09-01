@@ -3,6 +3,7 @@ import { codeLanguages } from './code'
 import { codeBlocks } from './codeblock'
 import { taskLists } from './tasks'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import {
   EditorView,
@@ -38,6 +39,8 @@ export interface EditorHandle {
   setTypewriter(enabled: boolean): void
   setHardcore(enabled: boolean): void
   focus(): void
+  /** Opens the find panel, for the Edit menu's Find item. */
+  find(): void
   destroy(): void
 }
 
@@ -64,9 +67,20 @@ function extensions(options: EditorOptions): Extension[] {
     typewriterScrolling(),
     hardcoreMode(),
 
+    /*
+     * Find, inside the document rather than the window.
+     *
+     * The browser's own find cannot do this job here: CodeMirror only renders
+     * the lines near the viewport, so a 400 line entry has about 40 of them in
+     * the DOM and roughly a tenth of its characters. Press Cmd-F at the top and
+     * search for a word two thirds down and the browser truthfully reports that
+     * it is not on the page, for text the writer definitely wrote.
+     */
+    search({ top: true }),
+
     // `defaultKeymap` last so our own bindings win; history keymap gives
     // Mod-Z / Mod-Shift-Z.
-    keymap.of([...historyKeymap, ...defaultKeymap]),
+    keymap.of([...searchKeymap, ...historyKeymap, ...defaultKeymap]),
 
     EditorView.updateListener.of((update) => {
       if (update.docChanged) options.onChange(update.state.doc.toString())
@@ -120,6 +134,11 @@ export function createEditor(options: EditorOptions): EditorHandle {
     },
 
     focus: () => view.focus(),
+    find: () => {
+      // The panel takes the focus itself, but only once the view has it.
+      view.focus()
+      openSearchPanel(view)
+    },
     destroy: () => view.destroy(),
   }
 }

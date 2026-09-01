@@ -373,6 +373,12 @@ export function pickRandomFont(
 /** Cycled by clicking the size control, matching the original's stepping. */
 export const FONT_SIZES = [16, 18, 20, 22, 24, 26, 28] as const
 
+/**
+ * The order the theme control walks, and now the Format menu too. Excludes
+ * `system`, which is a preference rather than a stop on the round trip.
+ */
+export const THEME_CYCLE = ['light', 'sepia', 'dark', 'black'] as const
+
 export const DEFAULT_SETTINGS: Settings = {
   fontSize: 18,
   fontFamily: 'lato',

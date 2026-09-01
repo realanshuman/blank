@@ -402,6 +402,120 @@ test.describe('the display faces', () => {
   })
 })
 
+test.describe('the Mac shell', () => {
+  test('reserves the title bar band only where there is a title bar to dodge', async ({ page }) => {
+    await freshApp(page)
+
+    // titleBarStyle is documented in Tauri as "the style of the macOS title
+    // bar", so Windows and Linux keep ordinary decorations and a browser has
+    // none. The 64px band was reserved on all four surfaces anyway, and three
+    // of them were giving up a strip of page for buttons they do not have.
+    await expect(page.locator('html')).toHaveAttribute('data-shell', 'web')
+    // 40px rather than 64: breathing room, plus enough of it for the focus
+    // session's corner clock, which hangs in this band.
+    await expect(page.locator('.canvas')).toHaveCSS('padding-top', '40px')
+
+    const top = await page
+      .locator('.cm-line')
+      .first()
+      .evaluate((line) => Math.round(line.getBoundingClientRect().top))
+    expect(top).toBeLessThan(48)
+
+    // And the Mac still gets it, since its buttons float over exactly there.
+    await page.evaluate(() => {
+      document.documentElement.dataset.shell = 'macos'
+    })
+    await expect(page.locator('.canvas')).toHaveCSS('padding-top', '64px')
+  })
+
+  test('pinching the trackpad steps the text size', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Pinch to size this.')
+    const size = () => page.locator('.cm-content').evaluate((el) => getComputedStyle(el).fontSize)
+    expect(await size()).toBe('18px')
+
+    // macOS reports a pinch as a wheel event carrying ctrlKey, which is also
+    // the browser's page-zoom signal, so the default has to be prevented or
+    // the whole interface scales instead of the writing.
+    const pinch = (deltaY: number) =>
+      page.locator('.canvas').dispatchEvent('wheel', {
+        deltaY,
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+
+    await pinch(-30)
+    await pinch(-30)
+    expect(await size(), 'pinching out did not enlarge').toBe('22px')
+
+    await pinch(30)
+    await pinch(30)
+    expect(await size(), 'pinching in did not shrink').toBe('18px')
+
+    // An ordinary scroll must still be an ordinary scroll.
+    await page.locator('.canvas').dispatchEvent('wheel', {
+      deltaY: 240,
+      ctrlKey: false,
+      bubbles: true,
+      cancelable: true,
+    })
+    await page.waitForTimeout(150)
+    expect(await size(), 'a plain scroll resized the text').toBe('18px')
+  })
+
+  test('find reaches text the browser cannot see', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    await freshApp(page)
+
+    // Typing 400 lines takes minutes; pasting is still a real input path.
+    const lines = Array.from(
+      { length: 400 },
+      (_, i) => `Line ${i + 1}: the quick brown fox jumps over the lazy dog.`,
+    )
+    lines[380] = 'Line 381: the NEEDLEWORD I will go looking for later.'
+    await page.evaluate((text) => navigator.clipboard.writeText(text), lines.join('\n'))
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('Control+V')
+    await page.waitForTimeout(600)
+    await page.keyboard.press('Control+Home')
+
+    // The premise: CodeMirror renders only the lines near the viewport, so
+    // from the top of a long entry the needle is not in the document at all
+    // and the browser's own find truthfully reports it missing.
+    const rendered = () =>
+      page.evaluate(() => (document.querySelector('.cm-content')?.textContent ?? '').includes('NEEDLEWORD'))
+    expect(await rendered(), 'the needle was already rendered, so this proves nothing').toBe(false)
+
+    await page.keyboard.press('Control+f')
+    const field = page.locator('.cm-search .cm-textfield').first()
+    await expect(field).toBeVisible()
+    await field.click()
+    // type(), not fill(): the panel searches on input events as you go.
+    await field.type('NEEDLEWORD', { delay: 15 })
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(400)
+
+    expect(await rendered(), 'find did not reach the match').toBe(true)
+  })
+
+  test('the find panel is dressed like the rest of the app', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('something to look for')
+    await page.keyboard.press('Control+f')
+
+    const field = page.locator('.cm-search .cm-textfield').first()
+    await expect(field).toBeVisible()
+
+    // CodeMirror's base theme sets cm-textfield to font-size 70%, which
+    // rendered the search term at 9px in a browser-default box. An element
+    // selector loses to that; the class does not.
+    await expect(field).toHaveCSS('font-size', '16px')
+    const family = await field.evaluate((el) => getComputedStyle(el).fontFamily)
+    expect(family).not.toMatch(/^Arial/)
+  })
+})
+
 test.describe('persistence', () => {
   test('entries survive a reload', async ({ page }) => {
     await freshApp(page)

@@ -7,6 +7,7 @@ import {
   FONT_SIZES,
   FONT_STACKS,
   TEXT_FONTS,
+  THEME_CYCLE,
   WILD_GROUPS,
   effectiveTheme,
   pickRandomFont,
@@ -114,7 +115,6 @@ function DiscIcon() {
 }
 
 /** Lightest to darkest, which is also the order the button walks through. */
-const THEME_CYCLE = ['light', 'sepia', 'dark', 'black'] as const
 
 const THEME_ICONS = {
   light: SunIcon,

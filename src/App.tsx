@@ -5,6 +5,7 @@ import { HistorySidebar } from './components/HistorySidebar'
 import { CommandPalette } from './components/CommandPalette'
 import { useStore } from './state/store'
 import { useTimer } from './session/timer'
+import { connectShell } from './shell/native'
 
 export function App() {
   const ready = useStore((state) => state.ready)
@@ -36,6 +37,10 @@ export function App() {
   useEffect(() => {
     void init()
   }, [init])
+
+  // The native menu bar, files opened from Finder, and the window title. All
+  // of it stands down in a browser.
+  useEffect(() => connectShell(), [])
 
   // Persist before the window goes away. `visibilitychange` fires on mobile
   // where `beforeunload` does not, so both are needed to never lose text.
