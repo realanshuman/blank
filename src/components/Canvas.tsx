@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react'
 import { createEditor, type EditorHandle } from '../editor/setup'
 import { useStore } from '../state/store'
+import { FONT_SIZES } from '../state/settings'
 
 /**
  * The one live editor. A module-level handle because the host below is
@@ -18,6 +19,14 @@ let active: EditorHandle | null = null
  */
 export function focusCanvas(): void {
   active?.focus()
+}
+
+/**
+ * Opens the find panel. Reached from the Edit menu, which is built by the
+ * native shell and so has no React tree to call into.
+ */
+export function findInCanvas(): void {
+  active?.find()
 }
 
 /**
@@ -76,7 +85,40 @@ function CanvasImpl() {
       }
     })
 
+    /*
+     * Pinch on a trackpad to resize the text.
+     *
+     * macOS reports a pinch as a wheel event with ctrlKey set, which is the
+     * same signal a browser uses for page zoom, so the default has to go or
+     * the whole interface scales instead of the writing. Steps through the
+     * same sizes the panel offers rather than scaling freely: a font size that
+     * lands between two of them cannot be represented by the control that sets
+     * it, and the panel would show nothing selected.
+     */
+    let pinch = 0
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return
+      event.preventDefault()
+
+      pinch += event.deltaY
+      // Roughly a centimetre of travel per step. Lower and the size skids
+      // across three values before the fingers have finished moving.
+      if (Math.abs(pinch) < 24) return
+
+      const { settings, updateSettings } = useStore.getState()
+      const index = FONT_SIZES.indexOf(settings.fontSize as (typeof FONT_SIZES)[number])
+      // Pinching out gives a negative deltaY, which has to mean larger.
+      const next = FONT_SIZES[Math.min(FONT_SIZES.length - 1, Math.max(0, index + (pinch > 0 ? -1 : 1)))]
+      pinch = 0
+      if (next !== undefined && next !== settings.fontSize) updateSettings({ fontSize: next })
+    }
+
+    // Not passive: preventDefault is the entire point, and a passive listener
+    // is forbidden from calling it.
+    parent.addEventListener('wheel', onWheel, { passive: false })
+
     return () => {
+      parent.removeEventListener('wheel', onWheel)
       unsubscribe()
       editor.destroy()
       active = null

@@ -24,6 +24,10 @@
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",
         "theme": null,
+        "windowEffects": {
+          "effects": ["sidebar"],
+          "state": "followsWindowActiveState"
+        },
         "dragDropEnabled": false
       }
     ],
@@ -52,6 +56,15 @@
     "category": "Productivity",
     "shortDescription": "A blank canvas for freewriting",
     "longDescription": "Open it and write. Local-first, saved as plain Markdown.",
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown Document",
+        "description": "Markdown document",
+        "role": "Editor",
+        "mimeType": "text/markdown"
+      }
+    ],
     "macOS": {
       "minimumSystemVersion": "10.15"
     }

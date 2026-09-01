@@ -221,13 +221,30 @@ button {
   min-height: 0;
   overflow: hidden;
   /*
-   * Load-bearing on macOS, not just breathing room. The desktop window hides
-   * its title bar and runs the webview edge to edge, so the close, minimise
-   * and zoom buttons float over this band. Tighten it and they land on live
-   * text. The window's minWidth is held above the phone breakpoint below for
-   * the same reason: that query drops this to 20px.
+   * Breathing room where the window has its own title bar or none at all, and
+   * enough of it for the focus session's corner clock, which hangs in this
+   * band and would otherwise sit on the first line of the writing.
    */
+  padding-top: 40px;
+}
+
+/*
+ * Load-bearing on macOS, not breathing room. There the desktop window hides
+ * its title bar and runs the webview edge to edge, so the close, minimise and
+ * zoom buttons float over this band; tighten it and they land on live text.
+ * The window's minWidth is held above the phone breakpoint for the same
+ * reason, since that query drops this to 20px.
+ *
+ * Everywhere else the band was pure loss: Windows and Linux draw a real title
+ * bar above the webview, and the web app has no window chrome whatsoever.
+ */
+:root[data-shell='macos'] .canvas {
   padding-top: 64px;
+}
+
+/* Lower to match, since the band it hangs in is 24px taller there. */
+:root[data-shell='macos'] .session-clock {
+  top: 18px;
 }
 
 .canvas .cm-editor {
@@ -462,7 +479,9 @@ button {
 
 .session-clock {
   position: absolute;
-  top: 18px;
+  /* Inside the canvas's own top band, which is shorter wherever there are no
+     floating window buttons to leave room for. */
+  top: 8px;
   /* Aligned to the bar's own right padding, so the number does not shift
      sideways as it takes over from the button down there. */
   right: 22px;
@@ -495,6 +514,142 @@ button {
 .session-clock:focus-visible {
   outline: 2px solid var(--blank-accent);
   outline-offset: 1px;
+}
+
+/* ---------------------------------------------------------------------------
+   The find panel
+
+   CodeMirror ships this unstyled, which means browser-default controls and a
+   grey strip across the top of a page whose entire proposition is that it is
+   calm. It gets the same treatment as the menus in the bar: the app's UI face,
+   theme tokens, and controls that recede until pointed at.
+
+   Targeted by CodeMirror's own `cm-textfield` and `cm-button` classes rather
+   than by element, because its base theme styles those directly and sets the
+   field to `font-size: 70%`, which rendered the search term at 9px. An
+   element selector loses to that and the panel looks broken rather than
+   plain.
+   --------------------------------------------------------------------------- */
+
+.cm-panels {
+  background: var(--blank-panel);
+  color: var(--blank-fg);
+  border: 0;
+  font-family: var(--blank-ui-font);
+}
+
+.cm-panels.cm-panels-top {
+  border-bottom: 1px solid var(--blank-rule);
+}
+
+.cm-editor .cm-panel.cm-search {
+  padding: 8px 10px;
+  background: var(--blank-panel);
+}
+
+.cm-editor .cm-panel.cm-search label {
+  color: var(--blank-muted);
+  font-size: 12px;
+}
+
+.cm-editor .cm-panel.cm-search .cm-textfield {
+  min-width: 170px;
+  padding: 5px 8px;
+  border: 1px solid var(--blank-rule);
+  border-radius: 6px;
+  background: var(--blank-bg);
+  color: var(--blank-fg);
+  font-family: inherit;
+  /* Under 16px iOS zooms the whole page when this takes focus. */
+  font-size: 16px;
+}
+
+.cm-editor .cm-panel.cm-search .cm-textfield:focus {
+  outline: 2px solid var(--blank-accent);
+  outline-offset: -1px;
+}
+
+.cm-editor .cm-panel.cm-search .cm-button {
+  padding: 5px 10px;
+  border: 1px solid var(--blank-rule);
+  border-radius: 6px;
+  background: transparent;
+  background-image: none;
+  color: var(--blank-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.cm-editor .cm-panel.cm-search .cm-button:hover {
+  background: var(--blank-panel-hover);
+  color: var(--blank-fg);
+}
+
+/* The close control is an absolutely positioned glyph rather than one of the
+   row's buttons, so it takes its border back off. */
+.cm-editor .cm-panel.cm-search [name='close'] {
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 8px;
+  color: var(--blank-faint);
+  cursor: pointer;
+}
+
+.cm-editor .cm-panel.cm-search [name='close']:hover {
+  color: var(--blank-fg);
+}
+
+/* ---------------------------------------------------------------------------
+   Vibrancy, on the Mac desktop app only
+
+   The window asks macOS for a sidebar effect, which paints a blurred sample of
+   whatever is behind the window underneath the whole webview. It only shows
+   through where the page lets it, and the page lets it through in exactly one
+   place: the history panel, which is chrome, which is what vibrancy is for.
+
+   Deliberately not the canvas. The writing surface has to be an opaque sheet
+   of one colour or the text sits on a moving photograph of the desktop, which
+   is the opposite of what this app is.
+
+   The failure mode is contained by design. If the effect is refused, or the
+   machine is old, the panel is simply a translucent panel over the desktop
+   rather than a blurred one: readable either way, because nothing behind it
+   belongs to Blank.
+   --------------------------------------------------------------------------- */
+
+:root[data-shell='macos'] body {
+  background: transparent;
+}
+
+/* The writing keeps its own opaque ground, so only the panel is see-through. */
+:root[data-shell='macos'] .app__main {
+  background: var(--blank-bg);
+}
+
+:root[data-shell='macos'] .sidebar {
+  background: color-mix(in srgb, var(--blank-panel) 62%, transparent);
+  /* Safari draws its own blur behind the panel as well, so the effect holds up
+     while the window is inactive and macOS damps the native one. */
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+/*
+ * Some people find translucency unreadable, and macOS has a switch for saying
+ * so. Honour it: the panel goes back to solid and the native effect is left
+ * painting behind an opaque surface, which costs nothing.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-shell='macos'] body {
+    background: var(--blank-bg);
+  }
+  :root[data-shell='macos'] .sidebar {
+    background: var(--blank-panel);
+    backdrop-filter: none;
+  }
 }
 
 /* Some people get motion sick from sliding panels; honour the OS switch. */
