@@ -497,4 +497,13 @@ export function applySettingsToDocument(settings: Settings): void {
   root.style.setProperty('--blank-line-height', String(settings.lineHeight))
   root.style.setProperty('--blank-measure', `${settings.measure}px`)
   root.dataset['theme'] = effectiveTheme(settings.theme)
+
+  // The meta tag is static markup, so without this the phone's status bar and
+  // address bar stayed the light theme's white behind a black canvas. Read the
+  // resolved token rather than repeating the palette: one source of truth.
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) {
+    const background = getComputedStyle(root).getPropertyValue('--blank-bg').trim()
+    if (background) meta.setAttribute('content', background)
+  }
 }

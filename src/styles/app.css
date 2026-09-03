@@ -3,6 +3,13 @@
 /* ---------------------------------------------------------------------------
    Theme tokens. Every colour in the app resolves through these, so adding a
    theme means adding one block rather than hunting through components.
+
+   The writing ink and the placeholder come from Freewrite, which this app is
+   modelled on: text is 0.20 grey on white and 0.9 grey on black, and the
+   placeholder is systemGray (#8e8e93) composited over the canvas at 50% in
+   light themes and 60% in dark ones. --blank-placeholder is its own token
+   rather than --blank-faint because faint also carries chrome that needs more
+   contrast than a placeholder does.
    --------------------------------------------------------------------------- */
 
 :root {
@@ -30,11 +37,12 @@
 
 :root[data-theme='light'] {
   --blank-bg: #ffffff;
-  --blank-fg: #141414;
+  --blank-fg: #333333;
   --blank-muted: #6b6b6b;
   --blank-faint: #b8b8b8;
+  --blank-placeholder: #c7c7c9;
   --blank-dimmed: #c9c9c9;
-  --blank-caret: #141414;
+  --blank-caret: #333333;
   --blank-accent: #2b6cb0;
   --blank-selection: #b8d5f5;
   --blank-code-bg: #f2f2f2;
@@ -56,6 +64,7 @@
   --blank-fg: #e6e6e6;
   --blank-muted: #8b8b93;
   --blank-faint: #55555e;
+  --blank-placeholder: #5e5e63;
   --blank-dimmed: #47474f;
   --blank-caret: #e6e6e6;
   --blank-accent: #7aa7d9;
@@ -82,11 +91,12 @@
  */
 :root[data-theme='black'] {
   --blank-bg: #000000;
-  --blank-fg: #e8e8e8;
+  --blank-fg: #e6e6e6;
   --blank-muted: #8c8c8c;
   --blank-faint: #4d4d4d;
+  --blank-placeholder: #555558;
   --blank-dimmed: #3a3a3a;
-  --blank-caret: #e8e8e8;
+  --blank-caret: #e6e6e6;
   --blank-accent: #7aa7d9;
   --blank-selection: #2f4a6b;
   --blank-code-bg: #141414;
@@ -108,6 +118,7 @@
   --blank-fg: #3a3128;
   --blank-muted: #7d7160;
   --blank-faint: #b9ab95;
+  --blank-placeholder: #c2bfbb;
   --blank-dimmed: #c8bca8;
   --blank-caret: #3a3128;
   --blank-accent: #9a5b2c;

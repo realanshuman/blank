@@ -868,3 +868,91 @@ test.describe('focus mode', () => {
     expect(dimColour).not.toBe(bodyColour)
   })
 })
+
+test.describe('the writing colours', () => {
+  /*
+   * Blank takes its ink from Freewrite: 0.20 grey on the white canvas, and a
+   * placeholder of systemGray (#8e8e93) at 50% over it. These are pinned
+   * because "looks about right" is exactly how they drifted to near-black.
+   */
+  test('paints ink and placeholder at the values Freewrite uses', async ({ page }) => {
+    await freshApp(page)
+
+    const placeholder = await page
+      .locator('.cm-placeholder')
+      .evaluate((node) => getComputedStyle(node).color)
+    expect(placeholder).toBe('rgb(199, 199, 201)')
+
+    await page.keyboard.type('Ink check')
+    const ink = await page.evaluate(() => {
+      const line = document.querySelector('.cm-line')
+      if (!line) return ''
+      const walk = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
+      const node = walk.nextNode()
+      const element = node?.parentElement ?? line
+      return getComputedStyle(element).color
+    })
+    expect(ink).toBe('rgb(51, 51, 51)')
+  })
+
+  test('keeps the placeholder faint when the canvas is plain', async ({ page }) => {
+    await freshApp(page)
+
+    // The plain canvas flattens everything under .cm-content with
+    // `color: inherit !important`, and CodeMirror renders the placeholder as a
+    // span in there. It therefore came out at full --blank-fg, so an empty page
+    // looked like it already had black text typed on it.
+    await (await writingControl(page, 'Render markdown as you type')).click()
+    await expect(await writingControl(page, 'Render markdown as you type')).toHaveText('Plain')
+    await page.keyboard.press('Escape')
+
+    await expect(page.locator('.cm-placeholder')).toHaveText('Start with one sentence')
+    const [placeholder, ink] = await page.evaluate(() => {
+      const node = document.querySelector('.cm-placeholder')
+      const line = document.querySelector('.cm-line')
+      return [
+        node ? getComputedStyle(node).color : '',
+        line ? getComputedStyle(line).color : '',
+      ]
+    })
+    expect(placeholder).not.toBe(ink)
+    expect(placeholder).toBe('rgb(199, 199, 201)')
+  })
+})
+
+test.describe('the page chrome', () => {
+  test('declares its own icon rather than letting the browser hunt for one', async ({ page }) => {
+    // Without this the app was the only one of the three pages with no icon
+    // link, so every load fetched /favicon.ico and logged a 404.
+    const failures: string[] = []
+    page.on('response', (response) => {
+      if (response.status() >= 400) failures.push(`${response.status()} ${response.url()}`)
+    })
+    await freshApp(page)
+    await expect(page.locator('link[rel="icon"]')).toHaveCount(1)
+    expect(failures).toEqual([])
+  })
+
+  test('follows the theme with its theme-color, not a fixed white', async ({ page }) => {
+    await freshApp(page)
+    const colour = () =>
+      page.locator('meta[name="theme-color"]').getAttribute('content')
+
+    expect(await colour()).toBe('#ffffff')
+
+    const toggle = page.getByTitle('Light, sepia, dark, black')
+    const html = page.locator('html')
+    const backgrounds = {
+      sepia: '#f5efe2',
+      dark: '#16161a',
+      black: '#000000',
+      light: '#ffffff',
+    }
+
+    for (const [theme, background] of Object.entries(backgrounds)) {
+      await toggle.click()
+      await expect(html).toHaveAttribute('data-theme', theme)
+      expect(await colour()).toBe(background)
+    }
+  })
+})

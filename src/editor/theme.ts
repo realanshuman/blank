@@ -57,7 +57,7 @@ export const editorTheme = EditorView.theme({
     backgroundColor: 'var(--blank-selection)',
   },
   '.cm-placeholder': {
-    color: 'var(--blank-faint)',
+    color: 'var(--blank-placeholder)',
     fontStyle: 'normal',
   },
   '.cm-gutters': { display: 'none' },
@@ -111,11 +111,17 @@ export function markdownStyling(): Extension {
  * still stored and still renders on export — it is simply never shown styled.
  */
 export const plainStyling: Extension = EditorView.theme({
-  // Everything except the focus-mode dimming, which is not markdown styling
-  // and must survive here: `color: inherit !important` was overriding it, so
-  // focus mode did nothing at all while the canvas was plain. Children of a
-  // dimmed span still match, and inherit the dimmed colour, which is right.
-  '.cm-content *:not(.cm-blank-dimmed)': {
+  // Two exceptions, both because `color: inherit !important` here beats a
+  // plain rule in the base theme and would repaint them in the full ink:
+  //
+  // - focus-mode dimming, which is not markdown styling. Without the
+  //   exemption focus mode did nothing at all while the canvas was plain.
+  //   Children of a dimmed span still match, and inherit the dimmed colour,
+  //   which is right.
+  // - the placeholder, which CodeMirror renders as a span inside .cm-content,
+  //   so it matched this rule and came out at full --blank-fg. An empty page
+  //   in plain mode looked like it already had black text typed on it.
+  '.cm-content *:not(.cm-blank-dimmed):not(.cm-placeholder)': {
     fontSize: 'inherit !important',
     fontWeight: 'inherit !important',
     fontStyle: 'normal !important',

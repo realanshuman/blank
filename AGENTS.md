@@ -90,7 +90,7 @@ of the file you are editing rather than reformatting it.
 
 Prose has no em dashes: not in UI strings, landing page copy, install guide, or commit
 messages. Use commas, colons or full stops. (Code comments in `src/` predate the rule and
-are not worth churning.) The one known violation is the `<title>` in `app.html`.
+are not worth churning.)
 
 Commit subjects say what changed in the imperative. Bodies explain the cause and the
 consequence, not the diff.
