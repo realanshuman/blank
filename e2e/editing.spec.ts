@@ -20,7 +20,15 @@ async function freshApp(page: Page) {
 /** The document as the editor holds it, blank lines included. */
 function docText(page: Page) {
   return page.evaluate(() =>
-    [...document.querySelectorAll('.cm-line')].map((line) => line.textContent ?? '').join('\n'),
+    [...document.querySelectorAll('.cm-line')]
+      .map((line) => {
+        // A code block's Copy button is a widget living inside the line, so it
+        // lands in textContent without being anywhere in the document.
+        const clone = line.cloneNode(true) as HTMLElement
+        clone.querySelectorAll('.cm-blank-copy').forEach((node) => node.remove())
+        return clone.textContent ?? ''
+      })
+      .join('\n'),
   )
 }
 

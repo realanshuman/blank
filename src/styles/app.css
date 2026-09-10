@@ -527,6 +527,140 @@ button {
   outline-offset: 1px;
 }
 
+/* ---------------------------------------------------------------- */
+/* The insert menu                                                    */
+/* ---------------------------------------------------------------- */
+
+/*
+ * Deliberately the same object as .bar__menu: same padding, radius, border,
+ * fill and shadow. Both are non-modal popovers, so they should be
+ * indistinguishable in weight. It specifically does NOT take .panel's heavier
+ * shadow, which belongs to a modal thing over a blurred backdrop; a popover
+ * at the caret wearing it reads as more important than the sentence under it.
+ *
+ * Three class selectors, which is what it takes to win. CodeMirror styles
+ * tooltips from its generated theme classes, and the rules that land here are
+ * `.<generated> .cm-tooltip` for z-index 500 and `.<generated2> .cm-tooltip` for a #f5f5f5
+ * fill, both two classes. Those generated names change between builds so they
+ * cannot be named directly, but the tooltip is a child of .cm-editor, so
+ * `.cm-editor .cm-tooltip.cm-blank-slash` outranks them without naming
+ * anything generated. Measured, not assumed: a bare `.cm-blank-slash` is one
+ * class and loses, which left this menu #f5f5f5 with a #bbb border in all
+ * four themes, including on a pure black page. Same fault that once put
+ * CodeMirror's lavender behind selected text.
+ *
+ * Note the editor only ever carries the light theme class, because nothing
+ * here passes {dark: true}, so the dark rule never applies and cannot be
+ * relied on.
+ */
+.cm-editor .cm-tooltip.cm-blank-slash {
+  /* Wide enough that the dated row, the longest, does not sit flush against
+     the edge in a locale that spells the month out at length. Still narrower
+     than the narrowest writing column, so it never needs to shrink. */
+  width: 248px;
+  max-height: min(300px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  background: var(--blank-panel);
+  border: 1px solid var(--blank-rule);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  font-family: var(--blank-ui-font);
+  /* Above the canvas and the session clock, below the sidebar, the bar menus,
+     the palette overlay and the toast. CodeMirror's own 500 would paint over
+     all of them. */
+  z-index: 20;
+  animation: slash-in 90ms ease-out;
+}
+
+.cm-blank-slash-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 6px;
+  /* --blank-ui-size, never the writing size: the menu is chrome, and at a
+     48px writing size it would otherwise be absurd. */
+  font-size: var(--blank-ui-size);
+  line-height: 1.35;
+  /* Muted at rest so nine rows carry very little ink on a page whose premise
+     is that it is empty. Only the selected row takes full ink. */
+  color: var(--blank-muted);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.cm-blank-slash-item.is-active {
+  background: var(--blank-panel-active);
+  color: var(--blank-fg);
+}
+
+/*
+ * The literal Markdown the row inserts, pushed to the far edge the way
+ * .bar__menu-count is, and set in mono because that is what it is. This is
+ * what makes the menu teach its own obsolescence: after a week of reading
+ * `- [ ]` the writer just types it.
+ */
+/*
+ * Without min-width: 0 a flex child refuses to shrink below its content, so a
+ * long label would push the hint out of the menu rather than give way. That
+ * exact fault has already been fixed once in the history rows.
+ */
+.cm-blank-slash-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cm-blank-slash-hint {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--blank-mono);
+  font-size: 11px;
+  color: var(--blank-faint);
+}
+
+/*
+ * 90ms and 2px, against .bar__menu's 120ms and 4px. That one opens upward
+ * from a button you clicked while at rest; this one opens downward while your
+ * hands are still moving, and 120ms of travel under an active caret reads as
+ * lag. There is no exit animation on purpose: the commonest way this closes
+ * is that you kept typing, and a fading ghost over the word you just wrote is
+ * worse than it simply being gone.
+ */
+@keyframes slash-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+/* Live regions are not read when display is none, so clip instead. */
+.blank-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A finger needs a bigger target than a caret does. */
+@media (pointer: coarse) {
+  .cm-blank-slash-item {
+    min-height: 44px;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    The find panel
 
@@ -675,6 +809,10 @@ button {
   /* The clock keeps its fade, which is not motion. Only the rise goes. */
   .session-clock {
     transform: none;
+  }
+
+  .cm-blank-slash {
+    animation: none;
   }
 }
 

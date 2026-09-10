@@ -4,6 +4,7 @@ import { codeBlocks } from './codeblock'
 import { balancedFences } from './fence'
 import { fileDrop } from './filedrop'
 import { markupKeymap } from './markup'
+import { setSlashMenu, slashMenu } from './slash'
 import { taskLists } from './tasks'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
@@ -41,6 +42,7 @@ export interface EditorHandle {
   setFocusScope(scope: FocusScope): void
   setTypewriter(enabled: boolean): void
   setHardcore(enabled: boolean): void
+  setSlashMenu(enabled: boolean): void
   focus(): void
   /** Opens the find panel, for the Edit menu's Find item. */
   find(): void
@@ -69,6 +71,7 @@ function extensions(options: EditorOptions): Extension[] {
     balancedFences(),
     fileDrop(),
     markupKeymap(),
+    slashMenu(),
     focusMode(),
     typewriterScrolling(),
     hardcoreMode(),
@@ -137,6 +140,10 @@ export function createEditor(options: EditorOptions): EditorHandle {
 
     setHardcore(enabled: boolean) {
       view.dispatch({ effects: setHardcore.of(enabled) })
+    },
+
+    setSlashMenu(enabled: boolean) {
+      view.dispatch({ effects: setSlashMenu.of(enabled) })
     },
 
     focus: () => view.focus(),

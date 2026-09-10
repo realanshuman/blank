@@ -55,6 +55,7 @@ function CanvasImpl() {
     editor.setFocusScope(initial.settings.focusScope)
     editor.setTypewriter(initial.settings.typewriter)
     editor.setHardcore(initial.settings.hardcore)
+    editor.setSlashMenu(initial.settings.slashMenu)
     editor.focus()
 
     const unsubscribe = useStore.subscribe((state, previous) => {
@@ -72,6 +73,7 @@ function CanvasImpl() {
       if (next.focusScope !== before.focusScope) editor.setFocusScope(next.focusScope)
       if (next.typewriter !== before.typewriter) editor.setTypewriter(next.typewriter)
       if (next.hardcore !== before.hardcore) editor.setHardcore(next.hardcore)
+      if (next.slashMenu !== before.slashMenu) editor.setSlashMenu(next.slashMenu)
 
       // Font size, measure and line height flow through CSS custom properties,
       // but CodeMirror caches line geometry and must be told to re-measure.
