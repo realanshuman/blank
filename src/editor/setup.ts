@@ -1,6 +1,8 @@
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { codeLanguages } from './code'
 import { codeBlocks } from './codeblock'
+import { balancedFences } from './fence'
+import { fileDrop } from './filedrop'
 import { taskLists } from './tasks'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
@@ -63,6 +65,8 @@ function extensions(options: EditorOptions): Extension[] {
     editorTheme,
     codeBlocks(),
     taskLists(),
+    balancedFences(),
+    fileDrop(),
     focusMode(),
     typewriterScrolling(),
     hardcoreMode(),
