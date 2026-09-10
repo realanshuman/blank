@@ -1,3 +1,4 @@
+import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { flattenInline, lexBody, stripLeadingTitle, toPdfBytes } from '../src/export/pdf'
 import { renderExport } from '../src/export'
@@ -19,6 +20,53 @@ function entry(body: string, overrides: Partial<Entry> = {}): Entry {
 /** PDF is compressed, so read the uncompressed header/trailer markers. */
 function asLatin1(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('latin1')
+}
+
+/**
+ * The page's drawing operators, inflated. Byte-length comparisons can only say
+ * that two exports differ; this says what was actually put on the page, which
+ * is the only way to assert that a marker is drawn rather than merely that the
+ * file changed size.
+ */
+function pdfContent(bytes: Uint8Array): string {
+  const raw = Buffer.from(bytes)
+  const latin1 = raw.toString('latin1')
+  let out = ''
+  for (const match of latin1.matchAll(/stream\r?\n/g)) {
+    const start = match.index + match[0].length
+    const end = latin1.indexOf('endstream', start)
+    if (end < 0) continue
+    try {
+      out += `${inflateSync(raw.subarray(start, end)).toString('latin1')}\n`
+    } catch {
+      // Not a deflated stream; nothing this helper can read.
+    }
+  }
+  return out
+}
+
+/** Every string jsPDF drew, with the x it was drawn at, in PDF points. */
+function pdfDraws(bytes: Uint8Array): Array<{ x: number; text: string }> {
+  return [...pdfContent(bytes).matchAll(/([\d.]+) [\d.]+ Td\n\((.*?)\) Tj/g)].map((match) => ({
+    x: Number(match[1]),
+    text: match[2] ?? '',
+  }))
+}
+
+function pdfText(bytes: Uint8Array): string[] {
+  return pdfDraws(bytes).map((draw) => draw.text)
+}
+
+/** The left edge of every rectangle drawn on the page, in PDF points. */
+function pdfRects(bytes: Uint8Array): number[] {
+  return [...pdfContent(bytes).matchAll(/([\d.]+) [\d.]+ [\d.]+ -?[\d.]+ re/g)].map((match) =>
+    Number(match[1]),
+  )
+}
+
+/** How many separate paths were stroked. The masthead rule is always one. */
+function pdfPaths(bytes: Uint8Array): number {
+  return [...pdfContent(bytes).matchAll(/^[\d.]+ [\d.]+ m$/gm)].length
 }
 
 describe('PDF generation', () => {
@@ -70,6 +118,67 @@ describe('PDF generation', () => {
     // Curly quotes, dashes and CJK would otherwise render as noise or fail.
     const bytes = toPdfBytes(entry('“Quoted” — dash, ellipsis… 世界'))
     expect(asLatin1(bytes).startsWith('%PDF-')).toBe(true)
+  })
+})
+
+describe('task lists', () => {
+  it('does not put the same marks on the page for a done task and an open one', () => {
+    // The bug: both `- [x]` and `- [ ]` came out as the same plain bullet, so a
+    // finished item and an unfinished one were indistinguishable on the page.
+    // Compared as drawing operators, not text: the difference is a drawn tick.
+    const done = pdfContent(toPdfBytes(entry('Notes\n\n- [x] write the thing')))
+    const open = pdfContent(toPdfBytes(entry('Notes\n\n- [ ] write the thing')))
+    expect(done).not.toBe(open)
+  })
+
+  it('does not render a task like an ordinary bullet', () => {
+    const task = pdfContent(toPdfBytes(entry('Notes\n\n- [ ] write the thing')))
+    const bullet = pdfContent(toPdfBytes(entry('Notes\n\n- write the thing')))
+    expect(task).not.toBe(bullet)
+  })
+
+  it('draws a box for each task and strips the marker from the text', () => {
+    const bytes = toPdfBytes(entry('Notes\n\n- [x] done it\n- [ ] open it'))
+    expect(pdfRects(bytes)).toHaveLength(2)
+    // The `[x]` is a marker, not something the writer wants to read back.
+    expect(pdfText(bytes)).toContain('done it')
+    expect(pdfText(bytes).join(' ')).not.toContain('[')
+  })
+
+  it('ticks the box only when the item is done', () => {
+    // The masthead rule is one stroked path in both; the tick is the extra.
+    const done = pdfPaths(toPdfBytes(entry('Notes\n\n- [x] write the thing')))
+    const open = pdfPaths(toPdfBytes(entry('Notes\n\n- [ ] write the thing')))
+    expect(done).toBe(open + 1)
+  })
+
+  it('puts the box in the marker column, where the bullet would sit', () => {
+    const bytes = toPdfBytes(entry('Notes\n\n- [ ] a task\n- a bullet'))
+    const box = pdfRects(bytes)[0]
+    const bullet = pdfDraws(bytes).find((draw) => draw.text.endsWith('a bullet'))
+    // The bullet's block starts at its own marker, so the two share an edge.
+    expect(box).toBeCloseTo(bullet?.x ?? -1, 3)
+  })
+
+  it('leaves an ordinary bullet alone', () => {
+    expect(pdfText(toPdfBytes(entry('Notes\n\n- just a bullet')))).toContain('-  just a bullet')
+    expect(pdfRects(toPdfBytes(entry('Notes\n\n- just a bullet')))).toHaveLength(0)
+  })
+
+  it('keeps the number on an ordered task', () => {
+    // Giving the box the marker column here would drop the number, trading one
+    // thing the writer typed for another.
+    const bytes = toPdfBytes(entry('Notes\n\n1. [x] first\n2. [ ] second'))
+    expect(pdfText(bytes)).toContain('2.')
+    expect(pdfRects(bytes)).toHaveLength(2)
+  })
+
+  it('keeps a task and its box together across a page break', () => {
+    // The box is drawn from inside the block, once the first line has settled,
+    // so a task pushed onto a new page does not leave its box behind.
+    const filler = Array.from({ length: 60 }, (_, i) => `Paragraph ${i}.`).join('\n\n')
+    expect(() => toPdfBytes(entry(`Notes\n\n${filler}\n\n- [x] the last item`))).not.toThrow()
+    expect(pdfRects(toPdfBytes(entry(`Notes\n\n${filler}\n\n- [x] the last item`)))).toHaveLength(1)
   })
 })
 

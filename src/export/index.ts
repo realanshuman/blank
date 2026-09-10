@@ -1,9 +1,11 @@
-import type { Token } from 'marked'
+import type { Token, Tokens } from 'marked'
 import {
   Document,
   HeadingLevel,
   Packer,
   Paragraph,
+  SymbolRun,
+  Tab,
   TextRun,
   type IParagraphOptions,
 } from 'docx'
@@ -112,6 +114,7 @@ interface RunStyle {
   italics?: boolean
   strike?: boolean
   font?: string
+  color?: string
 }
 
 /** Flatten marked's inline token tree into styled docx runs. */
@@ -158,6 +161,50 @@ function inlineRuns(tokens: Token[] | undefined, style: RunStyle = {}): TextRun[
   return runs
 }
 
+/**
+ * A task marker is a symbol run, not a character in the text.
+ *
+ * Typed as text, U+2611 gets emoji presentation and comes out as a colour
+ * emoji tile rather than a document glyph. w:sym pins the font, which keeps it
+ * monochrome type. Segoe UI Symbol rather than Wingdings because 2610 and 2611
+ * are real codepoints: a reader without that exact font can still fall back on
+ * them, where Wingdings' private-use slots would leave an empty box.
+ */
+const TASK_FONT = 'Segoe UI Symbol'
+const TASK_CHAR = { open: '2610', done: '2611' }
+
+/** Grey for a finished item, matching the PDF's own muted body colour. */
+const TASK_DONE_COLOR = '6E6E6E'
+
+/**
+ * Word's own level 0 bullet, in twips. Reusing its indents puts the checkbox
+ * exactly where the bullet would sit, so a list mixing tasks and plain items
+ * keeps one text edge.
+ */
+const TASK_INDENT = { left: 720, hanging: 360 }
+
+function taskParagraph(item: Tokens.ListItem): Paragraph {
+  const checked = item.checked === true
+  return new Paragraph({
+    children: [
+      new SymbolRun({
+        char: checked ? TASK_CHAR.done : TASK_CHAR.open,
+        symbolfont: TASK_FONT,
+        ...(checked ? { color: TASK_DONE_COLOR } : {}),
+      }),
+      // The hanging indent leaves an implied tab stop at the text edge; this
+      // is what walks the text over to it.
+      new TextRun({ children: [new Tab()] }),
+      // A finished item recedes into grey instead of being struck through,
+      // which is the call the editor already makes: a mostly-done list stays
+      // readable.
+      ...inlineRuns(item.tokens, checked ? { color: TASK_DONE_COLOR } : {}),
+    ],
+    indent: TASK_INDENT,
+    spacing: { after: 80 },
+  })
+}
+
 function blockParagraphs(tokens: Token[]): Paragraph[] {
   const paragraphs: Paragraph[] = []
 
@@ -190,6 +237,13 @@ function blockParagraphs(tokens: Token[]): Paragraph[] {
         break
       case 'list':
         for (const item of token.items) {
+          // marked flags a `- [x]` item as a task and carries its state on
+          // `checked`. The `checkbox` token it puts inside the item has no
+          // text of its own, so inlineRuns still yields just the item's words.
+          if (item.task) {
+            paragraphs.push(taskParagraph(item))
+            continue
+          }
           paragraphs.push(
             new Paragraph({
               children: inlineRuns(item.tokens),

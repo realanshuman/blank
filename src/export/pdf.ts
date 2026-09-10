@@ -119,7 +119,12 @@ class Layout {
     this.y = MARGIN.top
   }
 
-  block(text: string, style: Style): void {
+  /**
+   * `onFirstLine` is handed the y of the first line once it is settled, which
+   * is after any page break. A marker drawn before calling block would be
+   * stranded on the previous page whenever the item started a new one.
+   */
+  block(text: string, style: Style, onFirstLine?: (top: number) => void): void {
     const clean = toEncodable(text).replace(/\s+\n/g, '\n')
     if (!clean.trim()) return
 
@@ -134,8 +139,13 @@ class Layout {
 
     this.y += style.before
 
+    let first = true
     for (const line of lines) {
       this.ensureRoom(lineHeight)
+      if (first) {
+        onFirstLine?.(this.y)
+        first = false
+      }
       // baseline: 'top' anchors the glyphs below the cursor. jsPDF's default
       // is the baseline, which let the first line after a drawn rule climb
       // back up into the gap: ~8mm of air above the rule, ~1mm below it.
@@ -146,6 +156,66 @@ class Layout {
     }
 
     this.y += style.after
+  }
+
+  /**
+   * A task list item: a box in the marker column, then the text.
+   *
+   * The box is drawn rather than typed. jsPDF's built-in fonts are WinAnsi,
+   * which has no ballot box, and U+2610 comes out on the page as "&" followed
+   * by mis-spaced text. Vectors also size with the type, so the box stays
+   * proportional to whatever the body size is.
+   *
+   * A finished item recedes into grey rather than being struck through, which
+   * is the call the editor already makes: a mostly-done list stays readable.
+   */
+  task(text: string, checked: boolean, indent: number, number = ''): void {
+    this.doc.setFont(BODY.font, BODY.weight)
+    this.doc.setFontSize(BODY.size)
+
+    // An ordered task keeps its number and puts the box after it, the way
+    // GitHub renders `1. [x]`. Dropping the number to give the box the marker
+    // column would trade one thing the writer typed for another.
+    const numberWidth = number ? this.doc.getTextWidth(`${number}  `) : 0
+    // The bullet's own advance, so the text edge is identical whether an item
+    // is a task or not and a list mixing the two reads as one column.
+    const gutter = this.doc.getTextWidth(toEncodable('•  '))
+    // Points to millimetres, so the box is a proportion of the type rather
+    // than a magic number that would stop fitting if BODY.size changed. A
+    // little under the cap height, which is what leaves a word space between
+    // the box and its text inside that fixed gutter.
+    const em = BODY.size / 2.835
+    const side = em * 0.52
+
+    const style = { ...BODY, indent: indent + numberWidth + gutter, after: 1.4, grey: checked }
+
+    this.block(text, style, (top) => {
+      // Hung below the top of the line box so the box sits beside the letters
+      // rather than floating above them.
+      const boxTop = top + em * 0.36
+      const left = MARGIN.left + indent + numberWidth
+
+      if (number) {
+        // block has already set the font, size and colour for this line, so
+        // the number matches the text it belongs to without restoring state.
+        this.doc.text(toEncodable(number), MARGIN.left + indent, top, { baseline: 'top' })
+      }
+
+      this.doc.setDrawColor(checked ? 110 : 90)
+      this.doc.setLineWidth(0.25)
+      this.doc.rect(left, boxTop, side, side)
+
+      if (!checked) return
+      this.doc.setLineWidth(0.4)
+      this.doc.lines(
+        [
+          [side * 0.28, side * 0.32],
+          [side * 0.44, -side * 0.62],
+        ],
+        left + side * 0.22,
+        boxTop + side * 0.52,
+      )
+    })
   }
 
   rule(): void {
@@ -194,10 +264,24 @@ function renderTokens(layout: Layout, tokens: Token[], depth = 0): void {
       case 'list': {
         let index = token.start === '' || token.start === undefined ? 1 : Number(token.start)
         for (const item of token.items) {
+          const indent = 5 + depth * 5
+          // marked flags a `- [x]` item as a task and carries its state on
+          // `checked`. The `checkbox` token it puts inside the item has no
+          // text, so the flattened item is already just the item's own words.
+          if (item.task) {
+            layout.task(
+              flattenInline(item.tokens),
+              item.checked === true,
+              indent,
+              token.ordered ? `${index}.` : '',
+            )
+            index += 1
+            continue
+          }
           const marker = token.ordered ? `${index}.` : '•'
           layout.block(`${marker}  ${flattenInline(item.tokens)}`, {
             ...BODY,
-            indent: 5 + depth * 5,
+            indent,
             after: 1.4,
           })
           index += 1
