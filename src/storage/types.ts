@@ -42,6 +42,24 @@ export interface StorageAdapter {
   /** Keep the newest `keep` snapshots for an entry, drop the rest. */
   pruneSnapshots(entryId: string, keep: number): Promise<void>
 
+  // --- attachments ---------------------------------------------------------
+  // Bytes that belong to an entry, addressed by the same relative href that
+  // appears in the Markdown. See ./assets.ts for why they are stored as
+  // sidecar files rather than inlined into the body.
+
+  /**
+   * Store `bytes` for an entry and return the href to write into the Markdown.
+   * `name` may be a dropped file's name, so only its extension is used; the
+   * stored filename is built from the entry id and a fresh index.
+   */
+  writeAsset(entryId: string, name: string, bytes: Uint8Array): Promise<string>
+  /** Null when the href is unknown or is not one we wrote. */
+  readAsset(href: string): Promise<Uint8Array | null>
+  /** Drop every asset belonging to an entry. Called by remove(). */
+  removeAssets(entryId: string): Promise<void>
+  /** Every stored href, for orphan detection. */
+  listAssets(): Promise<string[]>
+
   /** Fired when something other than this app changed the store. */
   onExternalChange?(listener: () => void): () => void
 }
