@@ -44,7 +44,8 @@ export function needsClosingFence(doc: Text, lineBeforeCaret: string): string | 
  * The change is a pure insertion, so hardcore mode allows it, and it rides in
  * the same transaction as the backtick that triggered it so one undo takes the
  * whole thing back. The caret stays directly after the opening fence, where a
- * language name still goes.
+ * language name still goes, and the writer's own Enter opens the body. Adding
+ * a blank line here too would leave one stranded inside every block.
  */
 export function balancedFences(): Extension {
   return EditorView.inputHandler.of((view, from, to, text) => {
@@ -60,7 +61,7 @@ export function balancedFences(): Extension {
     if (indent === null) return false
 
     view.dispatch({
-      changes: { from, to, insert: `\`\n\n${indent}${FENCE}` },
+      changes: { from, to, insert: `\`\n${indent}${FENCE}` },
       selection: { anchor: from + 1 },
       userEvent: 'input.type',
       scrollIntoView: true,

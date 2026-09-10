@@ -47,6 +47,12 @@ async function dropFile(page: Page, name: string, type: string, body: string) {
   await page.waitForTimeout(200)
 }
 
+/** Markdown, Chat, Focus and Backspace live behind the ••• menu in the bar. */
+async function writingControl(page: Page, title: string) {
+  await page.getByTitle('Writing controls').click()
+  return page.getByTitle(title)
+}
+
 test.describe('dropped files', () => {
   /*
    * CodeMirror reads any dropped file as text and inserts it, guarded only by
@@ -84,14 +90,14 @@ test.describe('fenced code blocks', () => {
   test('close themselves as they are opened', async ({ page }) => {
     await freshApp(page)
     await page.keyboard.type('```')
-    expect(await docText(page)).toBe('```\n\n```')
+    expect(await docText(page)).toBe('```\n```')
   })
 
   test('leave the caret where a language name goes', async ({ page }) => {
     await freshApp(page)
     await page.keyboard.type('```')
     await page.keyboard.type('js')
-    expect(await docText(page)).toBe('```js\n\n```')
+    expect(await docText(page)).toBe('```js\n```')
   })
 
   test('do not swallow the prose that follows them', async ({ page }) => {
@@ -110,8 +116,85 @@ test.describe('fenced code blocks', () => {
     await page.keyboard.type('x')
     await page.keyboard.press('Enter')
     await page.keyboard.type('```')
-    expect(await docText(page)).toBe('x\n```\n\n```')
+    expect(await docText(page)).toBe('x\n```\n```')
     await page.keyboard.press('Control+z')
     expect(await docText(page)).not.toContain('```')
+  })
+})
+
+test.describe('list continuation', () => {
+  test('Enter carries a bullet to the next line', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('- one')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('two')
+    expect(await docText(page)).toBe('- one\n- two')
+  })
+
+  test('Enter increments a numbered list', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('1. one')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('two')
+    expect(await docText(page)).toBe('1. one\n2. two')
+  })
+
+  test('Enter carries a task marker unticked', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('- [x] done')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('next')
+    expect(await docText(page)).toBe('- [x] done\n- [ ] next')
+  })
+
+  test('Enter on an empty item ends the list', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('- one')
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('prose')
+    expect(await docText(page)).toBe('- one\n\nprose')
+  })
+
+  /*
+   * Ending a list clears the marker, which is a deletion, and hardcore mode
+   * filters those out. Without a fallback the transaction is dropped and
+   * Enter looks broken on an empty bullet.
+   */
+  test('Enter still works on an empty item in hardcore mode', async ({ page }) => {
+    await freshApp(page)
+    await (await writingControl(page, 'When off, the text can only grow, with no deleting')).click()
+    await page.locator('.cm-content').click()
+    await page.keyboard.type('- one')
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('prose')
+    expect(await docText(page)).toContain('prose')
+  })
+})
+
+test.describe('bold and italic', () => {
+  test('wrap the selection', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('make this bold')
+    await page.keyboard.press('Control+a')
+    await page.keyboard.press('Control+b')
+    expect(await docText(page)).toBe('**make this bold**')
+  })
+
+  test('unwrap a selection that is already bold', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('word')
+    await page.keyboard.press('Control+a')
+    await page.keyboard.press('Control+b')
+    await page.keyboard.press('Control+b')
+    expect(await docText(page)).toBe('word')
+  })
+
+  test('put the caret between the markers when nothing is selected', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.press('Control+i')
+    await page.keyboard.type('emphasis')
+    expect(await docText(page)).toBe('*emphasis*')
   })
 })

@@ -3,6 +3,7 @@ import { codeLanguages } from './code'
 import { codeBlocks } from './codeblock'
 import { balancedFences } from './fence'
 import { fileDrop } from './filedrop'
+import { markupKeymap } from './markup'
 import { taskLists } from './tasks'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
@@ -67,6 +68,7 @@ function extensions(options: EditorOptions): Extension[] {
     taskLists(),
     balancedFences(),
     fileDrop(),
+    markupKeymap(),
     focusMode(),
     typewriterScrolling(),
     hardcoreMode(),
