@@ -171,8 +171,35 @@ export function serializeEntryFile(entry: Entry): string {
  */
 const IMAGE_REF = /!\[([^\]]*)\]\([^)]*\)/g
 
+/**
+ * A chosen width rides at the end of the alt, after a pipe: `![|420](x.png)`.
+ *
+ * This is the convention Obsidian already reads, so a resized picture keeps
+ * its size in the one other editor these files are most likely to be opened
+ * in. Everywhere else it is an ordinary image with a slightly odd alt. The
+ * alternatives were worse: an HTML `<img>` tag stops the file being plain
+ * Markdown, and a `{width=}` attribute renders literally almost everywhere.
+ */
+const ALT_WIDTH = /^(.*)\|(\d+)$/
+
+export function altWidth(alt: string): number | null {
+  const found = ALT_WIDTH.exec(alt)
+  const width = found ? Number(found[2]) : Number.NaN
+  return Number.isFinite(width) && width > 0 ? width : null
+}
+
+export function altWithWidth(alt: string, width: number | null): string {
+  const base = ALT_WIDTH.exec(alt)?.[1] ?? alt
+  return width === null ? base : `${base}|${Math.round(width)}`
+}
+
+/**
+ * Only the alt text is the writer's, so only the alt text survives. The width
+ * is not: it is a number the app wrote, and left in it showed up as `|281` in
+ * the sidebar preview and counted as a word.
+ */
 export function stripImageRefs(text: string): string {
-  return text.replace(IMAGE_REF, '$1')
+  return text.replace(IMAGE_REF, (_match, alt: string) => altWithWidth(alt, null))
 }
 
 /** Strip markdown noise from a line so the sidebar shows readable titles. */
@@ -183,7 +210,7 @@ export function cleanTitleLine(line: string): string {
     .replace(/^\s*[-*+]\s+/, '')
     .replace(/^\s*\d+[.)]\s+/, '')
     .replace(/^\s*(?:[-*_]\s*){3,}$/, '')
-    .replace(IMAGE_REF, '$1')
+    .replace(IMAGE_REF, (_match, alt: string) => altWithWidth(alt, null))
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')

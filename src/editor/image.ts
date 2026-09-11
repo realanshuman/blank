@@ -1,4 +1,5 @@
 import { syntaxTree } from '@codemirror/language'
+import { altWidth, altWithWidth } from '../model/entry'
 import { Facet, StateField, type EditorState, type Extension, type Range } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 
@@ -25,6 +26,13 @@ interface Loaded {
   url: string
   width: number
   height: number
+}
+
+/** Narrow enough to still be a picture, and never wider than the column. */
+export const MIN_IMAGE_WIDTH = 48
+
+export function clampWidth(width: number, natural: number, column: number): number {
+  return Math.max(MIN_IMAGE_WIDTH, Math.min(width, natural, column))
 }
 
 /**
@@ -83,10 +91,113 @@ export class AssetCache {
   }
 }
 
+/**
+ * A grip on the picture's bottom right corner.
+ *
+ * Pointer events rather than mouse, so a trackpad, a stylus and a finger all
+ * work, and capture so the drag survives the pointer leaving the small grip.
+ * The live feedback is plain style on the element; the document is written
+ * once on release, which keeps the whole resize to a single undo.
+ */
+function handle(
+  view: EditorView,
+  figure: HTMLElement,
+  image: HTMLImageElement,
+  loaded: Loaded,
+  alt: { from: number; to: number },
+): HTMLElement {
+  const grip = document.createElement('div')
+  grip.className = 'cm-blank-image-grip'
+  grip.title = 'Drag to resize, double click for its own size'
+
+  const badge = document.createElement('div')
+  badge.className = 'cm-blank-image-size'
+  figure.append(badge)
+
+  const columnWidth = () => figure.parentElement?.clientWidth ?? loaded.width
+
+  let startX = 0
+  let startWidth = 0
+  let latest = 0
+  let frame = 0
+
+  const write = (width: number | null) => {
+    /*
+     * The document can move under a drag, and these offsets were taken when
+     * the widget was built. Writing a width into something that is no longer
+     * an alt would corrupt the line, so the brackets are checked first.
+     */
+    const { doc } = view.state
+    if (alt.to > doc.length) return
+    if (doc.sliceString(Math.max(0, alt.from - 2), alt.from) !== '![') return
+    if (doc.sliceString(alt.to, Math.min(doc.length, alt.to + 2)) !== '](') return
+
+    const text = doc.sliceString(alt.from, alt.to)
+    const next = altWithWidth(text, width)
+    if (next === text) return
+    view.dispatch({
+      changes: { from: alt.from, to: alt.to, insert: next },
+      userEvent: 'input.resize',
+    })
+  }
+
+  grip.addEventListener('pointerdown', (event) => {
+    // Or the editor takes it as a caret placement and the drag never starts.
+    event.preventDefault()
+    event.stopPropagation()
+    grip.setPointerCapture(event.pointerId)
+    startX = event.clientX
+    startWidth = image.clientWidth
+    latest = startWidth
+    figure.classList.add('is-resizing')
+    badge.textContent = `${startWidth}`
+  })
+
+  grip.addEventListener('pointermove', (event) => {
+    if (!grip.hasPointerCapture(event.pointerId)) return
+    latest = clampWidth(startWidth + (event.clientX - startX), loaded.width, columnWidth())
+    badge.textContent = `${latest}`
+    if (frame) return
+    // Coalesced into a frame: the height map has to keep up with the box or
+    // the caret and the lines below it drift while the pointer is down.
+    frame = requestAnimationFrame(() => {
+      frame = 0
+      image.style.width = `${latest}px`
+      image.style.height = 'auto'
+      view.requestMeasure()
+    })
+  })
+
+  const finish = (event: PointerEvent) => {
+    if (!grip.hasPointerCapture(event.pointerId)) return
+    grip.releasePointerCapture(event.pointerId)
+    if (frame) cancelAnimationFrame(frame)
+    frame = 0
+    figure.classList.remove('is-resizing')
+    // Back to its own size rather than a pixel count, so a picture dragged
+    // out to full width does not carry a number it does not need.
+    write(latest >= Math.min(loaded.width, columnWidth()) ? null : latest)
+  }
+  grip.addEventListener('pointerup', finish)
+  grip.addEventListener('pointercancel', finish)
+
+  grip.addEventListener('dblclick', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    write(null)
+  })
+
+  return grip
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     private readonly href: string,
     private readonly cache: AssetCache,
+    /** The chosen width from the alt text, or null for the picture's own. */
+    private readonly width: number | null,
+    /** Where the alt text sits, so a resize can rewrite it. */
+    private readonly alt: { from: number; to: number },
   ) {
     super()
   }
@@ -94,7 +205,7 @@ class ImageWidget extends WidgetType {
   // Without this CodeMirror rebuilds the image on every keystroke on the line,
   // which restarts the load and flickers.
   override eq(other: ImageWidget): boolean {
-    return other.href === this.href
+    return other.href === this.href && other.width === this.width
   }
 
   /**
@@ -103,7 +214,10 @@ class ImageWidget extends WidgetType {
    * wrong place.
    */
   override get estimatedHeight(): number {
-    return this.cache.get(this.href)?.height ?? 180
+    const loaded = this.cache.get(this.href)
+    if (!loaded) return 180
+    if (this.width === null || loaded.width === 0) return loaded.height
+    return Math.round((loaded.height * this.width) / loaded.width)
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -126,9 +240,11 @@ class ImageWidget extends WidgetType {
       }
       // Dimensions before `src`, so the box is its final size at first layout
       // rather than growing from zero after CodeMirror has measured it.
-      image.width = loaded.width
-      image.height = loaded.height
+      const shown = this.width ?? loaded.width
+      image.width = shown
+      image.height = Math.round((loaded.height * shown) / loaded.width)
       image.src = loaded.url
+      figure.append(handle(view, figure, image, loaded, this.alt))
 
       /*
        * An empty transaction, not `requestMeasure()`.
@@ -162,10 +278,14 @@ class ImageWidget extends WidgetType {
     return figure
   }
 
-  // The widget is a picture of the line above it, so clicks belong to the
-  // editor, not here.
-  override ignoreEvent(): boolean {
-    return false
+  /*
+   * True means CodeMirror leaves the event to the widget. Only the grip wants
+   * that: a click on the picture itself should still place the caret, which is
+   * how the writer gets to the reference underneath.
+   */
+  override ignoreEvent(event: Event): boolean {
+    const target = event.target as HTMLElement | null
+    return Boolean(target?.closest?.('.cm-blank-image-grip'))
   }
 }
 
@@ -187,6 +307,8 @@ const referenceLine = Decoration.line({ class: 'cm-blank-image-ref' })
  * the middle of a line of prose without shoving it around, and nothing pasted
  * here ever lands there.
  */
+const ALT_RANGE = /^!\[([^\]]*)\]\(/
+
 function buildDecorations(state: EditorState, cache: AssetCache): DecorationSet {
   const marks: Array<Range<Decoration>> = []
   const tree = syntaxTree(state)
@@ -203,12 +325,35 @@ function buildDecorations(state: EditorState, cache: AssetCache): DecorationSet 
       const href = state.doc.sliceString(url.from, url.to).trim()
       if (!href) return
 
-      marks.push(referenceLine.range(line.from))
-      marks.push(
-        Decoration.widget({ widget: new ImageWidget(href, cache), block: true, side: 1 }).range(
-          line.to,
-        ),
+      const found = ALT_RANGE.exec(state.doc.sliceString(node.from, node.to))
+      if (!found) return
+      const altText = found[1] ?? ''
+      const alt = { from: node.from + 2, to: node.from + 2 + altText.length }
+
+      const widget = new ImageWidget(href, cache, altWidth(altText), alt)
+
+      /*
+       * The reference is hidden while the caret is elsewhere, and revealed
+       * the moment it lands on that line.
+       *
+       * Showing it always was the wrong call. A heading's hashes are one
+       * character somebody typed; this is forty-seven characters the app
+       * generated, half the width of the writing column, and on a phone it
+       * wrapped to two lines. It read as a stack trace sitting in the middle
+       * of the prose. Hiding it only when the caret is away keeps it
+       * editable and keeps copy and paste whole, which is the part that
+       * mattered about leaving it in the document.
+       */
+      const caretHere = state.selection.ranges.some(
+        (range) => range.from <= line.to && range.to >= line.from,
       )
+
+      if (caretHere) {
+        marks.push(referenceLine.range(line.from))
+        marks.push(Decoration.widget({ widget, block: true, side: 1 }).range(line.to))
+      } else {
+        marks.push(Decoration.replace({ widget, block: true }).range(line.from, line.to))
+      }
     },
   })
 
@@ -231,7 +376,8 @@ export function images(cache: AssetCache): Extension {
     create: (state) => buildDecorations(state, cache),
 
     update(value, tr) {
-      if (!tr.docChanged && syntaxTree(tr.startState) === syntaxTree(tr.state)) {
+      const moved = !tr.startState.selection.eq(tr.state.selection)
+      if (!tr.docChanged && !moved && syntaxTree(tr.startState) === syntaxTree(tr.state)) {
         return value.map(tr.changes)
       }
       return buildDecorations(tr.state, cache)

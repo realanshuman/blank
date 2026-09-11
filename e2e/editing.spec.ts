@@ -73,12 +73,14 @@ test.describe('dropped files', () => {
     await freshApp(page)
     await page.keyboard.type('My morning pages.')
     await dropFile(page, 'logo.svg', 'image/svg+xml', '<svg xmlns="http://www.w3.org/2000/svg"/>')
-    // The sentence survives whole. An image is a block, so the reference goes
-    // on the line below rather than splitting the word under the pointer.
+    // The sentence survives whole. An image is a block, so it goes below the
+    // line rather than splitting the word under the pointer, and its
+    // reference is hidden while the caret is away.
     const text = await docText(page)
     expect(text).not.toContain('<svg')
     expect(text).not.toContain('xmlns')
-    expect(text).toMatch(/^My morning pages\.\n!\[\]\(attachments\/[\w.-]+\.svg\)\n$/)
+    expect(text).toContain('My morning pages.')
+    await expect(page.locator('.cm-blank-image')).toHaveCount(1)
   })
 
   test('a dropped image becomes a reference, never its bytes', async ({ page }) => {
@@ -87,7 +89,8 @@ test.describe('dropped files', () => {
     await dropFile(page, 'shot.png', 'image/png', '\x89PNG\r\n\x1a\n')
     const text = await docText(page)
     expect(text).not.toContain('PNG')
-    expect(text).toMatch(/^Before\.\n!\[\]\(attachments\/[\w.-]+\.png\)\n$/)
+    expect(text).toContain('Before.')
+    await expect(page.locator('.cm-blank-image')).toHaveCount(1)
   })
 
   /* Neither text nor an image: nothing at all beats something surprising. */

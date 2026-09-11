@@ -22,6 +22,32 @@ function docText(page: Page) {
   )
 }
 
+/**
+ * The entry as it was saved, which is the thing these assertions are really
+ * about. `docText` reads rendered lines, and a reference is replaced by its
+ * picture whenever the caret is elsewhere.
+ */
+async function savedBody(page: Page) {
+  await page.waitForTimeout(900)
+  return page.evaluate(
+    () =>
+      new Promise<string>((resolve) => {
+        const open = indexedDB.open('blank')
+        open.onsuccess = () => {
+          const all = open.result.transaction('entries', 'readonly').objectStore('entries').getAll()
+          all.onsuccess = () =>
+            resolve(
+              all.result
+                .map((row: Record<string, unknown>) => String(row.contents ?? row.body ?? ''))
+                .join('\n'),
+            )
+          all.onerror = () => resolve('')
+        }
+        open.onerror = () => resolve('')
+      }),
+  )
+}
+
 /** A real PNG on the clipboard, which is how a screenshot actually arrives. */
 async function pasteImage(page: Page, width = 160, height = 100) {
   await page.evaluate(
@@ -53,7 +79,7 @@ test.describe('pasted images', () => {
 
     // The reference is plain Markdown pointing into the sidecar folder, which
     // is what keeps the file working when it is opened anywhere else.
-    expect(await docText(page)).toMatch(/^Notes\.\n!\[\]\(attachments\/[\w.-]+\.png\)\n$/)
+    expect(await savedBody(page)).toMatch(/Notes\.\n!\[\]\(attachments\/[\w.-]+\.png\)/)
   })
 
   test('are drawn under the reference that names them', async ({ page }) => {
@@ -68,25 +94,6 @@ test.describe('pasted images', () => {
     }))
     expect(size.broken).toBe(false)
     expect(size.natural).toBe(220)
-  })
-
-  /*
-   * The reference stays in the document rather than being replaced, so the
-   * caret walks past it normally and copying gives back something that can be
-   * pasted into another editor. It is set faint instead, because the
-   * highlighter would otherwise paint it as an accent coloured underlined
-   * link, which is the loudest thing on the page for a string nobody typed.
-   */
-  test('leave the reference visible but quiet', async ({ page }) => {
-    await freshApp(page)
-    await pasteImage(page)
-
-    const painted = await page.locator('.cm-blank-image-ref span').first().evaluate((node) => {
-      const style = getComputedStyle(node)
-      return { color: style.color, underline: style.textDecorationLine }
-    })
-    expect(painted.underline).toBe('none')
-    expect(painted.color).toBe('rgb(184, 184, 184)')
   })
 
   test('survive a reload, so the bytes really reached storage', async ({ page }) => {
@@ -161,7 +168,7 @@ test.describe('pasted images', () => {
       )
     })
     await page.waitForTimeout(700)
-    expect(await docText(page)).toMatch(/!\[\]\(attachments\/[\w.-]+\.png\)/)
+    expect(await savedBody(page)).toMatch(/!\[\]\(attachments\/[\w.-]+\.png\)/)
     await expect(page.locator('.cm-blank-image img')).toHaveCount(1)
   })
 })
@@ -197,7 +204,7 @@ test.describe('two images at once', () => {
     })
     await page.waitForTimeout(1500)
 
-    const refs = [...(await docText(page)).matchAll(/attachments\/[\w.-]+/g)].map((m) => m[0])
+    const refs = [...(await savedBody(page)).matchAll(/attachments\/[\w.-]+/g)].map((m) => m[0])
     expect(refs).toHaveLength(2)
     expect(new Set(refs).size).toBe(2)
     await expect(page.locator('.cm-blank-image img')).toHaveCount(2)
@@ -234,5 +241,94 @@ test.describe('exports', () => {
     expect(pdf).toMatch(/\/Subtype\s*\/Image/)
     expect(pdf).toMatch(/\/Width\s+200/)
     expect(pdf).not.toMatch(/missing image|unsupported image/)
+  })
+})
+
+test.describe('the reference', () => {
+  /*
+   * Forty-seven characters the app generated, half the width of the writing
+   * column, sitting in the middle of the prose. A heading's hashes are one
+   * character somebody typed; this read as a stack trace. It hides while the
+   * caret is away and comes back the moment it lands there, which keeps it
+   * editable and keeps copy and paste whole.
+   */
+  test('is out of the way until the caret reaches it', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Notes.')
+    await page.keyboard.press('Enter')
+    await pasteImage(page, 320, 200)
+    await page.keyboard.type('After.')
+    await page.waitForTimeout(400)
+
+    expect(await docText(page)).toBe('Notes.\nAfter.')
+    await expect(page.locator('.cm-blank-image-ref')).toHaveCount(0)
+    await expect(page.locator('.cm-blank-image img')).toHaveCount(1)
+
+    // Clicking the picture is how the writer gets to it.
+    const box = (await page.locator('.cm-blank-image img').boundingBox())!
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(page.locator('.cm-blank-image-ref')).toHaveCount(1)
+    expect(await docText(page)).toContain('attachments/')
+  })
+})
+
+test.describe('resizing', () => {
+  async function dragGrip(page: Page, by: number) {
+    const grip = (await page.locator('.cm-blank-image-grip').boundingBox())!
+    await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(grip.x + by, grip.y + by / 2, { steps: 10 })
+    await page.mouse.up()
+    await page.waitForTimeout(400)
+  }
+
+  test('drags to a new width and writes it into the markdown', async ({ page }) => {
+    await freshApp(page)
+    await pasteImage(page, 480, 300)
+    const before = (await page.locator('.cm-blank-image img').boundingBox())!.width
+
+    await dragGrip(page, -200)
+    const after = (await page.locator('.cm-blank-image img').boundingBox())!.width
+    expect(after).toBeLessThan(before - 100)
+
+    // The width rides in the alt, which is the form Obsidian also reads.
+    expect(await savedBody(page)).toMatch(/!\[\|\d+\]\(attachments\//)
+  })
+
+  test('keeps the width across a reload', async ({ page }) => {
+    await freshApp(page)
+    await pasteImage(page, 480, 300)
+    await dragGrip(page, -200)
+    const resized = (await page.locator('.cm-blank-image img').boundingBox())!.width
+
+    await page.waitForTimeout(900)
+    await page.reload()
+    await page.waitForSelector('.cm-content')
+    await page.waitForTimeout(800)
+
+    const after = (await page.locator('.cm-blank-image img').boundingBox())!.width
+    expect(Math.round(after)).toBe(Math.round(resized))
+  })
+
+  test('double clicking the grip gives the picture its own size back', async ({ page }) => {
+    await freshApp(page)
+    await pasteImage(page, 480, 300)
+    const natural = (await page.locator('.cm-blank-image img').boundingBox())!.width
+    await dragGrip(page, -200)
+    expect((await page.locator('.cm-blank-image img').boundingBox())!.width).toBeLessThan(natural)
+
+    const grip = (await page.locator('.cm-blank-image-grip').boundingBox())!
+    await page.mouse.dblclick(grip.x + grip.width / 2, grip.y + grip.height / 2)
+    await page.waitForTimeout(400)
+    expect((await page.locator('.cm-blank-image img').boundingBox())!.width).toBe(natural)
+  })
+
+  test('never leaves the picture wider than the writing column', async ({ page }) => {
+    await freshApp(page)
+    await pasteImage(page, 300, 200)
+    await dragGrip(page, 4000)
+    const image = (await page.locator('.cm-blank-image img').boundingBox())!
+    const column = await page.locator('.cm-content').evaluate((n) => n.clientWidth)
+    expect(image.width).toBeLessThanOrEqual(column)
   })
 })

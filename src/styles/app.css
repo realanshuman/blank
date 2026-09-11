@@ -536,8 +536,85 @@ button {
  * is the same bargain a heading's hashes and a block's fences already make.
  */
 .cm-blank-image {
+  position: relative;
+  /* Shrink to the picture, so the grip below lands on the image's own right
+     edge rather than at the far side of the writing column. */
+  width: fit-content;
+  max-width: 100%;
   margin: 0 0 0.9em;
   line-height: 0;
+}
+
+/*
+ * A grip on the corner, absent until the picture is pointed at. A writing page
+ * should not carry a control that is always on screen; the writer only wants
+ * this in the moment they are thinking about the picture.
+ */
+.cm-blank-image-grip {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 18px;
+  height: 18px;
+  border-bottom-right-radius: 4px;
+  background:
+    linear-gradient(
+      -45deg,
+      transparent 0 4px,
+      rgba(255, 255, 255, 0.9) 4px 5px,
+      transparent 5px 7px,
+      rgba(255, 255, 255, 0.9) 7px 8px,
+      transparent 8px
+    ),
+    rgba(0, 0, 0, 0.38);
+  opacity: 0;
+  cursor: nwse-resize;
+  transition: opacity 120ms ease;
+  /* The browser must not claim the drag as a scroll or a text selection. */
+  touch-action: none;
+  user-select: none;
+}
+
+.cm-blank-image:hover .cm-blank-image-grip,
+.cm-blank-image.is-resizing .cm-blank-image-grip {
+  opacity: 1;
+}
+
+/* The number is only worth showing while it is changing. */
+.cm-blank-image-size {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #ffffff;
+  font-family: var(--blank-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 90ms ease;
+}
+
+.cm-blank-image.is-resizing .cm-blank-image-size {
+  opacity: 1;
+}
+
+/* A finger needs a bigger target, and has no hover to reveal it with. */
+@media (pointer: coarse) {
+  .cm-blank-image-grip {
+    width: 30px;
+    height: 30px;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-blank-image-grip,
+  .cm-blank-image-size {
+    transition-duration: 0s;
+  }
 }
 
 .cm-blank-image img {

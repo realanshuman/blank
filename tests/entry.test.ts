@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cleanTitleLine,
+  stripImageRefs,
+  altWithWidth,
+  altWidth,
   countWords,
   createEntry,
   deriveTitle,
@@ -198,5 +202,43 @@ describe('createEntry', () => {
     const entry = createEntry(new Date('2026-08-29T10:00:00.000Z'))
     expect(entry.body).toBe('')
     expect(entry.createdAt).toBe(entry.updatedAt)
+  })
+})
+
+describe('a resized image', () => {
+  it('reads the width out of the alt', () => {
+    expect(altWidth('|281')).toBe(281)
+    expect(altWidth('a cat|420')).toBe(420)
+    expect(altWidth('')).toBeNull()
+    expect(altWidth('a cat')).toBeNull()
+    // A caption that merely ends in a pipe and digits is still a caption if
+    // the number is not one, and a zero width is not a width.
+    expect(altWidth('|0')).toBeNull()
+    expect(altWidth('|abc')).toBeNull()
+  })
+
+  it('writes the width back without doubling it', () => {
+    expect(altWithWidth('', 281)).toBe('|281')
+    expect(altWithWidth('|281', 420)).toBe('|420')
+    expect(altWithWidth('a cat|281', 420)).toBe('a cat|420')
+    expect(altWithWidth('|281', null)).toBe('')
+    expect(altWithWidth('a cat|281', null)).toBe('a cat')
+    expect(altWithWidth('a cat', null)).toBe('a cat')
+  })
+
+  it('rounds, because a width is a whole pixel', () => {
+    expect(altWithWidth('', 280.6)).toBe('|281')
+  })
+
+  /*
+   * The width is the app's number, not the writer's. Left in, it showed up as
+   * "|281" under the entry in the sidebar and scored as a word.
+   */
+  it('never reaches a title, an excerpt or a word count', () => {
+    const body = 'Notes.\n\n![|281](attachments/a-1.png)\n\nIt went fine.'
+    expect(stripImageRefs(body)).not.toContain('281')
+    expect(cleanTitleLine('![|281](attachments/a-1.png)')).toBe('')
+    expect(cleanTitleLine('![a cat|281](attachments/a-1.png)')).toBe('a cat')
+    expect(countWords(body)).toBe(countWords('Notes.\n\nIt went fine.'))
   })
 })
