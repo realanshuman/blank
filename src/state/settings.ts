@@ -12,8 +12,6 @@ export interface Settings {
   typewriter: boolean
   /** Backspace disabled — the text can only grow. */
   hardcore: boolean
-  /** The `/` insert menu. Refusable: it rewrites characters on a keystroke. */
-  slashMenu: boolean
   /** Width of the writing column in pixels. */
   measure: number
   lineHeight: number
@@ -389,7 +387,6 @@ export const DEFAULT_SETTINGS: Settings = {
   focusScope: 'off',
   typewriter: false,
   hardcore: false,
-  slashMenu: true,
   measure: 700,
   lineHeight: 1.6,
   timerMinutes: 15,
@@ -461,7 +458,6 @@ export function coerceSettings(raw: unknown): Settings {
     focusScope: isFocusScope(input.focusScope) ? input.focusScope : d.focusScope,
     typewriter: typeof input.typewriter === 'boolean' ? input.typewriter : d.typewriter,
     hardcore: typeof input.hardcore === 'boolean' ? input.hardcore : d.hardcore,
-    slashMenu: typeof input.slashMenu === 'boolean' ? input.slashMenu : d.slashMenu,
     measure: clamp(input.measure as number, 380, 1400, d.measure),
     lineHeight: coerceLineHeight(input.lineHeight, d.lineHeight),
     timerMinutes: clamp(input.timerMinutes as number, 1, 180, d.timerMinutes),

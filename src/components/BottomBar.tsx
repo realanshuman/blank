@@ -463,13 +463,6 @@ export function BottomBar({
                 onSelect: () => updateSettings({ hardcore: !settings.hardcore }),
               },
               {
-                key: 'slash',
-                label: `Insert menu is ${settings.slashMenu ? 'On' : 'Off'}`,
-                title: 'Type / at the start of a line to insert a heading, a list, a task',
-                pressed: settings.slashMenu,
-                onSelect: () => updateSettings({ slashMenu: !settings.slashMenu }),
-              },
-              {
                 key: 'fullscreen',
                 label: 'Fullscreen',
                 title: 'Toggle fullscreen',
