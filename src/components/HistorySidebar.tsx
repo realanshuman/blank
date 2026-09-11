@@ -68,7 +68,7 @@ async function downloadEntry(id: string): Promise<void> {
   const entry = useStore.getState().allEntries().find((candidate) => candidate.id === id)
   if (!entry) return
   const { exportEntries } = await import('../export')
-  await exportEntries([entry], 'pdf')
+  await exportEntries([entry], 'pdf', useStore.getState().readImageBytes)
 }
 
 interface Group {

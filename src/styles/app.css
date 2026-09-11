@@ -527,6 +527,160 @@ button {
   outline-offset: 1px;
 }
 
+/*
+ * A pasted image, drawn under the reference that names it.
+ *
+ * A block widget below the line rather than in place of it, so the characters
+ * in the file stay where the writer put them and the caret walks past them
+ * normally. The reference goes faint and small instead of disappearing, which
+ * is the same bargain a heading's hashes and a block's fences already make.
+ */
+.cm-blank-image {
+  position: relative;
+  /* Shrink to the picture, so the grip below lands on the image's own right
+     edge rather than at the far side of the writing column. */
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 0.9em;
+  line-height: 0;
+}
+
+/*
+ * A grip on the corner, absent until the picture is pointed at. A writing page
+ * should not carry a control that is always on screen; the writer only wants
+ * this in the moment they are thinking about the picture.
+ */
+.cm-blank-image-grip {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 18px;
+  height: 18px;
+  border-bottom-right-radius: 4px;
+  background:
+    linear-gradient(
+      -45deg,
+      transparent 0 4px,
+      rgba(255, 255, 255, 0.9) 4px 5px,
+      transparent 5px 7px,
+      rgba(255, 255, 255, 0.9) 7px 8px,
+      transparent 8px
+    ),
+    rgba(0, 0, 0, 0.38);
+  opacity: 0;
+  cursor: nwse-resize;
+  transition: opacity 120ms ease;
+  /* The browser must not claim the drag as a scroll or a text selection. */
+  touch-action: none;
+  user-select: none;
+}
+
+.cm-blank-image:hover .cm-blank-image-grip,
+.cm-blank-image.is-resizing .cm-blank-image-grip {
+  opacity: 1;
+}
+
+/* The number is only worth showing while it is changing. */
+.cm-blank-image-size {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #ffffff;
+  font-family: var(--blank-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 90ms ease;
+}
+
+.cm-blank-image.is-resizing .cm-blank-image-size {
+  opacity: 1;
+}
+
+/* A finger needs a bigger target, and has no hover to reveal it with. */
+@media (pointer: coarse) {
+  .cm-blank-image-grip {
+    width: 30px;
+    height: 30px;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-blank-image-grip,
+  .cm-blank-image-size {
+    transition-duration: 0s;
+  }
+}
+
+.cm-blank-image img {
+  /* Never wider than the writing column, and never blown up past its own
+     size: an upscaled screenshot looks broken rather than generous. */
+  max-width: 100%;
+  height: auto;
+  /* The global `* { box-sizing: border-box }` made the width set on the
+     element its BORDER box, so every picture was drawn 2px smaller than it
+     is: a 16px favicon came out at 14 and resampled to mush. */
+  box-sizing: content-box;
+  border-radius: 4px;
+  /* An image is usually a photograph or a screenshot with its own white
+     ground, so it needs an edge or it bleeds into a light page. */
+  border: 1px solid var(--blank-rule);
+}
+
+/*
+ * The one place this feature has to tell the writer something, so it is not
+ * the quietest thing on the page. It was --blank-faint at 1.98:1 inside a box
+ * the full width of the column, which put less weight on the message than on
+ * the machine reference above it. The box is now the size of its own text and
+ * starts on the same left edge as the prose.
+ */
+.cm-blank-image.is-missing {
+  width: fit-content;
+  padding: 10px 12px 10px 0;
+  border: 1px dashed var(--blank-rule);
+  border-radius: 6px;
+  font-family: var(--blank-ui-font);
+  font-size: var(--blank-ui-size);
+  line-height: 1.4;
+  color: var(--blank-muted);
+}
+
+/*
+ * The reference is machine text the writer never typed, so it recedes. It
+ * stays selectable and copyable, which is what makes moving an image between
+ * entries work at all.
+ */
+/*
+ * Measured: the reference sat 0px under the sentence above it and 7.2px above
+ * its own picture, so it read as belonging to the paragraph rather than
+ * captioning the image, and its 20.7px line box broke the 28.8px paragraph
+ * rhythm. The air moves to the other side of it and the division restores a
+ * full-height line.
+ */
+.cm-blank-image-ref {
+  font-family: var(--blank-mono);
+  font-size: 0.72em;
+  line-height: calc(var(--blank-line-height) / 0.72);
+  margin-top: 0.5em;
+  color: var(--blank-faint);
+}
+
+/*
+ * The highlighter paints the url part as a link, accent coloured and
+ * underlined, which is the loudest thing on the page for a string the writer
+ * never typed and cannot click. One element beats the generated single-class
+ * highlight rules without naming them.
+ */
+.cm-blank-image-ref span {
+  color: inherit;
+  text-decoration: none;
+}
+
 /* ---------------------------------------------------------------------------
    The find panel
 
@@ -676,6 +830,7 @@ button {
   .session-clock {
     transform: none;
   }
+
 }
 
 /* ---------------------------------------------------------------------------

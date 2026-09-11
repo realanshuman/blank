@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { countWords, createEntry, type Entry, type EntryMeta } from '../model/entry'
 import { searchEntries, type SearchHit } from '../model/search'
 import { EntryRepository } from '../storage/repository'
+import { assetMimeType } from '../storage/assets'
 import { createStorage } from '../storage'
 import type { SnapshotMeta } from '../storage/types'
 import {
@@ -55,6 +56,13 @@ interface AppState {
   toggleFavorite(id: string): Promise<void>
   setTags(id: string, tags: string[]): Promise<void>
   renameEntry(id: string, title: string): Promise<void>
+
+  /** Stores a pasted image against the open entry, returning its relative href. */
+  saveImage(bytes: Uint8Array, name: string): Promise<string | null>
+  /** An object URL for a stored image, or null if the file has gone. */
+  imageUrl(href: string): Promise<string | null>
+  /** Raw bytes for an export to embed, or null if the file has gone. */
+  readImageBytes(href: string): Promise<Uint8Array | null>
 
   updateSettings(patch: Partial<Settings>): void
   setQuery(query: string): void
@@ -239,6 +247,56 @@ export const useStore = create<AppState>((set, get) => ({
     const repo = requireRepository()
     await repo.patchMeta(id, { title: title.trim() })
     set({ entries: repo.list() })
+  },
+
+  async saveImage(bytes: Uint8Array, name: string) {
+    const { currentId } = get()
+    if (!currentId || !repository) return null
+    try {
+      return await repository.writeAsset(currentId, name, bytes)
+    } catch (error) {
+      console.error('Could not store the image:', error)
+      return null
+    }
+  },
+
+  /*
+   * The URL is made here rather than in the editor so the editor keeps knowing
+   * nothing about storage. Ownership passes with it: whoever asked for the URL
+   * revokes it, which is the editor's asset cache.
+   */
+  async imageUrl(href: string) {
+    if (!repository) return null
+    try {
+      const bytes = await repository.readAsset(href)
+      if (!bytes) return null
+      // Copied into a plain ArrayBuffer rather than cast: a Uint8Array can be
+      // backed by a SharedArrayBuffer, which Blob will not take, and the cast
+      // that silences it would be hiding that rather than handling it.
+      const buffer = new ArrayBuffer(bytes.byteLength)
+      new Uint8Array(buffer).set(bytes)
+      return URL.createObjectURL(new Blob([buffer], { type: assetMimeType(href) }))
+    } catch (error) {
+      console.error('Could not read the image:', error)
+      return null
+    }
+  },
+
+  /*
+   * What an exporter is handed so it can embed a picture. The export module
+   * must not import storage: both shells, the dispatcher and every unit test
+   * import it, and a storage import there would drag Tauri and IndexedDB into
+   * all of them. The caller already holds the adapter, so the caller passes
+   * this in.
+   */
+  async readImageBytes(href: string) {
+    if (!repository) return null
+    try {
+      return await repository.readAsset(href)
+    } catch (error) {
+      console.error('Could not read the image for export:', error)
+      return null
+    }
   },
 
   updateSettings(patch: Partial<Settings>) {

@@ -601,18 +601,26 @@ test.describe('code blocks', () => {
 
     // The fence line itself must not come along: nobody wants ```ts pasted
     // into a terminal.
+    // The trailing Enter now lands inside a closed block, so the block really
+    // does end on a blank line. Before fences balanced themselves this one ran
+    // to the end of the document and had nothing after it to pick up.
     const clipboard = await page.evaluate(() => navigator.clipboard.readText())
-    expect(clipboard).toBe('const ok = await retry(3)\nreturn ok')
+    expect(clipboard).toBe('const ok = await retry(3)\nreturn ok\n')
   })
 })
 
 test.describe('task lists', () => {
   test('tick and untick from the marker, rewriting the file', async ({ page }) => {
     await freshApp(page)
-    await page.keyboard.type('Standup\n\n- [ ] chase the retry bug\n- [x] write the postmortem\n')
+    // Enter carries the marker down, so the second item is typed as content
+    // only. Typing `- [x]` again would give `- [ ] - [x]`.
+    await page.keyboard.type('Standup\n\n- [ ] chase the retry bug\nwrite the postmortem')
     await page.waitForTimeout(500)
 
     await expect(page.locator('.cm-blank-task')).toHaveCount(2)
+    await expect(page.locator('.cm-blank-task-done')).toHaveCount(0)
+
+    await page.locator('.cm-blank-task').nth(1).click()
     await expect(page.locator('.cm-blank-task-done')).toHaveCount(1)
 
     // The marker is not swapped for a widget: what is on screen is the three

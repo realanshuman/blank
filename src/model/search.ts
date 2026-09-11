@@ -1,5 +1,5 @@
 import type { Entry, EntryMeta } from './entry'
-import { toMeta } from './entry'
+import { stripImageRefs, toMeta } from './entry'
 
 export interface SearchHit {
   meta: EntryMeta
@@ -175,7 +175,16 @@ export function searchEntries(entries: Entry[], rawQuery: string): SearchHit[] {
 
   for (const entry of entries) {
     const meta = toMeta(entry)
-    const lowerBody = entry.body.toLowerCase()
+    // A pasted image puts `attachments/…-1.png` in the body. Nobody typed it,
+    // so searching it would match `png` in every entry holding a picture and
+    // centre the snippet on a path. The alt text, which someone may have
+    // written, stays.
+    //
+    // Everything downstream reads this same string: the snippet is sliced from
+    // it and the highlight offsets are found in that slice, so searching one
+    // string and quoting another would put the marks on the wrong characters.
+    const body = stripImageRefs(entry.body)
+    const lowerBody = body.toLowerCase()
     const lowerTitle = meta.displayTitle.toLowerCase()
     const entryTags = entry.tags.map((tag) => tag.toLowerCase())
 
@@ -186,7 +195,7 @@ export function searchEntries(entries: Entry[], rawQuery: string): SearchHit[] {
     let matchedEveryNeedle = true
 
     if (query.regex) {
-      const inBody = regexRanges(entry.body, query.regex).length
+      const inBody = regexRanges(body, query.regex).length
       const inTitle = regexRanges(meta.displayTitle, query.regex).length
       if (inBody + inTitle === 0) continue
       score = inTitle * 10 + Math.min(inBody, 20)
@@ -213,7 +222,7 @@ export function searchEntries(entries: Entry[], rawQuery: string): SearchHit[] {
     const ageDays = (Date.now() - Date.parse(entry.updatedAt)) / 86_400_000
     score += Math.max(0, 5 - ageDays / 30)
 
-    hits.push({ meta, score, ...buildSnippet(entry.body, lowerBody, needles, 160, query.regex) })
+    hits.push({ meta, score, ...buildSnippet(body, lowerBody, needles, 160, query.regex) })
   }
 
   return hits.sort((a, b) => b.score - a.score)

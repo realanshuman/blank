@@ -1,6 +1,9 @@
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { codeLanguages } from './code'
 import { codeBlocks } from './codeblock'
+import { balancedFences } from './fence'
+import { clipboardImageReader, fileDrop } from './filedrop'
+import { markupKeymap } from './markup'
 import { taskLists } from './tasks'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { openSearchPanel, search, searchKeymap } from '@codemirror/search'
@@ -15,6 +18,7 @@ import {
 } from '@codemirror/view'
 import { focusMode, setFocusScope, setTypewriter, typewriterScrolling, type FocusScope } from './focus'
 import { hardcoreMode, programmatic, setHardcore } from './hardcore'
+import { AssetCache, assetGateway, images, type AssetGateway } from './image'
 import { editorTheme, markdownStyling, plainStyling } from './theme'
 
 export const PLACEHOLDER = 'Start with one sentence'
@@ -26,6 +30,11 @@ export interface EditorOptions {
   parent: HTMLElement
   initialText: string
   liveMarkdown: boolean
+  /** How stored images are read and written. Absent in tests and on a page
+   * with no storage behind it, where references simply render as missing. */
+  assets?: AssetGateway | null
+  /** Reads an image off the OS clipboard, where the paste event will not. */
+  clipboardImage?: (() => Promise<File | null>) | null
   onChange(text: string): void
 }
 
@@ -44,7 +53,7 @@ export interface EditorHandle {
   destroy(): void
 }
 
-function extensions(options: EditorOptions): Extension[] {
+function extensions(options: EditorOptions, cache: AssetCache): Extension[] {
   return [
     history(),
     drawSelection(),
@@ -61,8 +70,14 @@ function extensions(options: EditorOptions): Extension[] {
     stylingCompartment.of(options.liveMarkdown ? markdownStyling() : plainStyling),
 
     editorTheme,
+    assetGateway.of(options.assets ?? null),
+    images(cache),
+    clipboardImageReader.of(options.clipboardImage ?? null),
     codeBlocks(),
     taskLists(),
+    balancedFences(),
+    fileDrop(),
+    markupKeymap(),
     focusMode(),
     typewriterScrolling(),
     hardcoreMode(),
@@ -89,11 +104,13 @@ function extensions(options: EditorOptions): Extension[] {
 }
 
 export function createEditor(options: EditorOptions): EditorHandle {
+  const cache = new AssetCache()
+
   const view = new EditorView({
     parent: options.parent,
     state: EditorState.create({
       doc: options.initialText,
-      extensions: extensions(options),
+      extensions: extensions(options, cache),
     }),
   })
 
@@ -102,6 +119,9 @@ export function createEditor(options: EditorOptions): EditorHandle {
 
     setText(text: string) {
       if (text === view.state.doc.toString()) return
+      // A different entry means different images, and the object URLs held for
+      // the last one are now unreachable.
+      cache.clear()
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: text },
         // Loading an entry must not be blocked by hardcore mode, and must not
@@ -139,6 +159,9 @@ export function createEditor(options: EditorOptions): EditorHandle {
       view.focus()
       openSearchPanel(view)
     },
-    destroy: () => view.destroy(),
+    destroy: () => {
+      cache.clear()
+      view.destroy()
+    },
   }
 }

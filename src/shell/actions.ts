@@ -47,7 +47,7 @@ async function exportCurrent(format: ExportFormat): Promise<void> {
   if (!entry) return
   // docx and marked are heavy and only wanted the moment somebody exports.
   const { exportEntries } = await import('../export')
-  await exportEntries([entry], format)
+  await exportEntries([entry], format, useStore.getState().readImageBytes)
 }
 
 export async function runAction(id: string): Promise<void> {

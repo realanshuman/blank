@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cleanTitleLine,
+  stripImageRefs,
+  altWithWidth,
+  altWidth,
   countWords,
   createEntry,
   deriveTitle,
@@ -130,6 +134,38 @@ describe('word counting', () => {
     expect(countWords('')).toBe(0)
     expect(countWords('   \n\t ')).toBe(0)
   })
+
+  it('does not count a pasted image as a word', () => {
+    // A pasted image is a file reference, not writing. The count drives the
+    // session WPM and gates snapshotting, so every picture used to pad it.
+    expect(countWords('![](attachments/2026-09-10-142233-a1b2-1.png)')).toBe(0)
+    expect(countWords('hello ![](attachments/2026-09-10-142233-a1b2-1.png)')).toBe(1)
+  })
+
+  it('still counts alt text the writer typed', () => {
+    // Only the syntax and the path go: an alt is words, and dropping them
+    // would be the same bug pointing the other way.
+    expect(countWords('![a sunset over the bay](attachments/x-1.png)')).toBe(5)
+    expect(countWords('before ![a sunset](attachments/x-1.png) after')).toBe(4)
+  })
+})
+
+describe('images in a title and an excerpt', () => {
+  // cleanTitleLine already strips `![alt](url)`, so both of these were correct
+  // before images existed. Pinned here because nothing else proves it.
+  it('does not make a file path the title', () => {
+    expect(
+      deriveTitle({ body: '![](attachments/2026-09-10-142233-a1b2-1.png)\n\nThe real first line.' }),
+    ).toBe('The real first line.')
+  })
+
+  it('falls back to the alt text when the image is all there is', () => {
+    expect(deriveTitle({ body: '![a sunset](attachments/x-1.png)' })).toBe('a sunset')
+  })
+
+  it('keeps a file path out of the excerpt', () => {
+    expect(excerptOf('Title line\n\n![](attachments/x-1.png)\n\nThe body.')).toBe('The body.')
+  })
 })
 
 describe('excerpt', () => {
@@ -166,5 +202,43 @@ describe('createEntry', () => {
     const entry = createEntry(new Date('2026-08-29T10:00:00.000Z'))
     expect(entry.body).toBe('')
     expect(entry.createdAt).toBe(entry.updatedAt)
+  })
+})
+
+describe('a resized image', () => {
+  it('reads the width out of the alt', () => {
+    expect(altWidth('|281')).toBe(281)
+    expect(altWidth('a cat|420')).toBe(420)
+    expect(altWidth('')).toBeNull()
+    expect(altWidth('a cat')).toBeNull()
+    // A caption that merely ends in a pipe and digits is still a caption if
+    // the number is not one, and a zero width is not a width.
+    expect(altWidth('|0')).toBeNull()
+    expect(altWidth('|abc')).toBeNull()
+  })
+
+  it('writes the width back without doubling it', () => {
+    expect(altWithWidth('', 281)).toBe('|281')
+    expect(altWithWidth('|281', 420)).toBe('|420')
+    expect(altWithWidth('a cat|281', 420)).toBe('a cat|420')
+    expect(altWithWidth('|281', null)).toBe('')
+    expect(altWithWidth('a cat|281', null)).toBe('a cat')
+    expect(altWithWidth('a cat', null)).toBe('a cat')
+  })
+
+  it('rounds, because a width is a whole pixel', () => {
+    expect(altWithWidth('', 280.6)).toBe('|281')
+  })
+
+  /*
+   * The width is the app's number, not the writer's. Left in, it showed up as
+   * "|281" under the entry in the sidebar and scored as a word.
+   */
+  it('never reaches a title, an excerpt or a word count', () => {
+    const body = 'Notes.\n\n![|281](attachments/a-1.png)\n\nIt went fine.'
+    expect(stripImageRefs(body)).not.toContain('281')
+    expect(cleanTitleLine('![|281](attachments/a-1.png)')).toBe('')
+    expect(cleanTitleLine('![a cat|281](attachments/a-1.png)')).toBe('a cat')
+    expect(countWords(body)).toBe(countWords('Notes.\n\nIt went fine.'))
   })
 })

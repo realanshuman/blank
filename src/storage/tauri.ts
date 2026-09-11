@@ -3,13 +3,23 @@ import {
   exists,
   mkdir,
   readDir,
+  readFile,
   readTextFile,
   remove,
+  writeFile,
   writeTextFile,
 } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
 import { load, type Store } from '@tauri-apps/plugin-store'
 import { appDataDir, documentDir, join } from '@tauri-apps/api/path'
+import {
+  ASSET_DIR,
+  assetFilename,
+  assetFilenameFromHref,
+  assetHref,
+  isRemovableAsset,
+  nextAssetIndex,
+} from './assets'
 import type { Snapshot, SnapshotMeta, StorageAdapter } from './types'
 
 const VAULT_KEY = 'vaultPath'
@@ -87,6 +97,12 @@ export class TauriStorage implements StorageAdapter {
     const chosen = await open({
       directory: true,
       multiple: false,
+      // Picking a folder grants it at runtime, and `recursive` decides the
+      // shape of that grant: false pushes `<vault>` and `<vault>/*`, true
+      // pushes `<vault>/**`. Without it `<vault>/attachments/` is outside the
+      // scope and every image read fails, on any folder the static capability
+      // does not already cover.
+      recursive: true,
       title: 'Choose a folder for your writing',
     })
     if (typeof chosen !== 'string') return null
@@ -135,10 +151,83 @@ export class TauriStorage implements StorageAdapter {
     const path = await this.pathFor(id)
     if (await exists(path)) await remove(path)
 
+    // Before the snapshot rows, because the images are the only part of an
+    // entry that lives in the user's own folder. Leaving them there would
+    // litter a directory they browse.
+    await this.removeAssets(id)
+
     const doomed = this.snapshotIndex.filter((meta) => meta.entryId === id)
     this.snapshotIndex = this.snapshotIndex.filter((meta) => meta.entryId !== id)
     await Promise.all(doomed.map((meta) => this.deleteSnapshotFile(meta.file)))
     await this.saveSnapshotIndex()
+  }
+
+  // --- attachments ----------------------------------------------------------
+
+  private async assetDirPath(): Promise<string> {
+    return join(this.require(), ASSET_DIR)
+  }
+
+  /** Filenames in the attachments folder, or [] when it does not exist yet. */
+  private async assetFilenames(): Promise<string[]> {
+    const dir = await this.assetDirPath()
+    if (!(await exists(dir))) return []
+    try {
+      const found = await readDir(dir)
+      return found.filter((item) => item.isFile).map((item) => item.name)
+    } catch {
+      return []
+    }
+  }
+
+  async writeAsset(entryId: string, name: string, bytes: Uint8Array): Promise<string> {
+    const dir = await this.assetDirPath()
+    // Created on the first paste rather than at init: a writer who never
+    // pastes an image should never find an empty folder in their writing
+    // directory. `recursive` also makes this a no-op when it already exists.
+    await mkdir(dir, { recursive: true })
+
+    const index = nextAssetIndex(await this.assetFilenames(), entryId)
+    const filename = assetFilename(entryId, index, name)
+    await writeFile(await join(dir, filename), bytes)
+    return assetHref(filename)
+  }
+
+  async readAsset(href: string): Promise<Uint8Array | null> {
+    const filename = assetFilenameFromHref(href)
+    if (filename === null) return null
+
+    const path = await join(this.require(), ASSET_DIR, filename)
+    // Same reasoning as read(): a file can vanish between the Markdown being
+    // written and the image being asked for, and a missing image is a broken
+    // picture, not a crash.
+    if (!(await exists(path))) return null
+    try {
+      return await readFile(path)
+    } catch {
+      return null
+    }
+  }
+
+  async removeAssets(entryId: string): Promise<void> {
+    const dir = await this.assetDirPath()
+    const doomed = (await this.assetFilenames()).filter((name) =>
+      isRemovableAsset(name, entryId),
+    )
+    await Promise.all(
+      doomed.map(async (name) => {
+        try {
+          await remove(await join(dir, name))
+        } catch {
+          // A file already gone is the outcome we wanted. Failing the whole
+          // delete over one of them would strand the rest.
+        }
+      }),
+    )
+  }
+
+  async listAssets(): Promise<string[]> {
+    return (await this.assetFilenames()).map(assetHref)
   }
 
   // --- snapshots ------------------------------------------------------------

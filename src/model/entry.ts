@@ -164,6 +164,44 @@ export function serializeEntryFile(entry: Entry): string {
   return lines.join('\n') + entry.body
 }
 
+/**
+ * A pasted image is `![](attachments/<id>-1.png)`: a file reference the writer
+ * never typed, sitting in the middle of their prose. Only the alt text is
+ * theirs, so only the alt text survives.
+ */
+const IMAGE_REF = /!\[([^\]]*)\]\([^)]*\)/g
+
+/**
+ * A chosen width rides at the end of the alt, after a pipe: `![|420](x.png)`.
+ *
+ * This is the convention Obsidian already reads, so a resized picture keeps
+ * its size in the one other editor these files are most likely to be opened
+ * in. Everywhere else it is an ordinary image with a slightly odd alt. The
+ * alternatives were worse: an HTML `<img>` tag stops the file being plain
+ * Markdown, and a `{width=}` attribute renders literally almost everywhere.
+ */
+const ALT_WIDTH = /^(.*)\|(\d+)$/
+
+export function altWidth(alt: string): number | null {
+  const found = ALT_WIDTH.exec(alt)
+  const width = found ? Number(found[2]) : Number.NaN
+  return Number.isFinite(width) && width > 0 ? width : null
+}
+
+export function altWithWidth(alt: string, width: number | null): string {
+  const base = ALT_WIDTH.exec(alt)?.[1] ?? alt
+  return width === null ? base : `${base}|${Math.round(width)}`
+}
+
+/**
+ * Only the alt text is the writer's, so only the alt text survives. The width
+ * is not: it is a number the app wrote, and left in it showed up as `|281` in
+ * the sidebar preview and counted as a word.
+ */
+export function stripImageRefs(text: string): string {
+  return text.replace(IMAGE_REF, (_match, alt: string) => altWithWidth(alt, null))
+}
+
 /** Strip markdown noise from a line so the sidebar shows readable titles. */
 export function cleanTitleLine(line: string): string {
   return line
@@ -172,7 +210,7 @@ export function cleanTitleLine(line: string): string {
     .replace(/^\s*[-*+]\s+/, '')
     .replace(/^\s*\d+[.)]\s+/, '')
     .replace(/^\s*(?:[-*_]\s*){3,}$/, '')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(IMAGE_REF, (_match, alt: string) => altWithWidth(alt, null))
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
@@ -209,9 +247,13 @@ export function excerptOf(body: string, limit = 120): string {
 /**
  * Word counting that matches what a writer expects: CJK characters count
  * individually, everything else splits on whitespace.
+ *
+ * Images go first. A reference is one whitespace-delimited token, so every
+ * pasted picture used to score as a word in the number that drives the session
+ * WPM and gates snapshotting on a minimum word delta.
  */
 export function countWords(text: string): number {
-  const stripped = text.replace(/[‘’“”]/g, '')
+  const stripped = stripImageRefs(text).replace(/[‘’“”]/g, '')
   const cjk = stripped.match(/[぀-ヿ㐀-䶿一-鿿豈-﫿]/g)?.length ?? 0
   const latin = stripped
     .replace(/[぀-ヿ㐀-䶿一-鿿豈-﫿]/g, ' ')
