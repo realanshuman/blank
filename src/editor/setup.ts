@@ -2,7 +2,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { codeLanguages } from './code'
 import { codeBlocks } from './codeblock'
 import { balancedFences } from './fence'
-import { fileDrop } from './filedrop'
+import { clipboardImageReader, fileDrop } from './filedrop'
 import { markupKeymap } from './markup'
 import { taskLists } from './tasks'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
@@ -33,6 +33,8 @@ export interface EditorOptions {
   /** How stored images are read and written. Absent in tests and on a page
    * with no storage behind it, where references simply render as missing. */
   assets?: AssetGateway | null
+  /** Reads an image off the OS clipboard, where the paste event will not. */
+  clipboardImage?: (() => Promise<File | null>) | null
   onChange(text: string): void
 }
 
@@ -70,6 +72,7 @@ function extensions(options: EditorOptions, cache: AssetCache): Extension[] {
     editorTheme,
     assetGateway.of(options.assets ?? null),
     images(cache),
+    clipboardImageReader.of(options.clipboardImage ?? null),
     codeBlocks(),
     taskLists(),
     balancedFences(),

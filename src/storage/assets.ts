@@ -78,23 +78,59 @@ export function assetExtension(name: string): string {
 }
 
 /**
- * The entry id becomes part of a path and part of the deletion rule, so a bad
- * one is refused rather than repaired: a silently mangled id would write
- * images that removeAssets could never find again.
+ * The entry id becomes part of a path and part of the deletion rule, so it is
+ * refused rather than repaired only when there is nothing usable left in it.
+ * Anything else is folded into a safe stem by `assetStem`.
  */
 export function assertSafeEntryId(entryId: string): void {
-  if (entryId.length > MAX_ENTRY_ID_LENGTH || !SAFE_COMPONENT.test(entryId)) {
+  if (entryId.length === 0 || entryId.length > MAX_ENTRY_ID_LENGTH) {
     throw new Error(`Unsafe entry id for an attachment: ${JSON.stringify(entryId)}`)
   }
 }
 
-/** `<entryId>-<index>.<ext>`, the only filename shape this app writes. */
+/** A stable, short, non-cryptographic digest. FNV-1a, base 36. */
+function digestOf(text: string): string {
+  let hash = 0x811c9dc5
+  for (let at = 0; at < text.length; at += 1) {
+    hash ^= text.charCodeAt(at)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return hash.toString(36).padStart(7, '0').slice(-7)
+}
+
+/**
+ * The part of a filename that says which entry owns it.
+ *
+ * On the desktop an entry id is not generated, it is whatever the `.md` file
+ * was called, because the folder is the user's and they are invited to open it
+ * in Obsidian or Finder. So `Daily Note.md`, `café.md` and `2026-09-11
+ * morning.md` are all real ids, and none of them is a filename this app can
+ * safely write next to. Refusing them meant pasting an image into such an
+ * entry threw, got swallowed, and looked to the writer like nothing happened.
+ *
+ * Anything outside the safe set becomes a dash, and a digest of the original
+ * is appended whenever that changed something, so two entries that flatten to
+ * the same stem still get different files. The same transform runs on the way
+ * back out in `isAssetOf`, so writing and deleting keep agreeing.
+ */
+export function assetStem(entryId: string): string {
+  if (SAFE_COMPONENT.test(entryId) && entryId.length <= MAX_ENTRY_ID_LENGTH) return entryId
+
+  const folded = entryId
+    .replace(/[^A-Za-z0-9._-]/g, '-')
+    .replace(/^[^A-Za-z0-9]+/, '')
+    .slice(0, 80)
+
+  return `${folded || 'entry'}-${digestOf(entryId)}`
+}
+
+/** `<stem>-<index>.<ext>`, the only filename shape this app writes. */
 export function assetFilename(entryId: string, index: number, name: string): string {
   assertSafeEntryId(entryId)
   if (!Number.isSafeInteger(index) || index < 1) {
     throw new Error(`Attachment index must be a positive integer, got ${index}`)
   }
-  return `${entryId}-${index}.${assetExtension(name)}`
+  return `${assetStem(entryId)}-${index}.${assetExtension(name)}`
 }
 
 /**
@@ -136,7 +172,7 @@ export function assetIndex(filename: string): number | null {
 }
 
 export function isAssetOf(filename: string, entryId: string): boolean {
-  return assetEntryId(filename) === entryId
+  return assetEntryId(filename) === assetStem(entryId)
 }
 
 /**

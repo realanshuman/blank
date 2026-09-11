@@ -71,9 +71,47 @@ describe('the stored filename', () => {
     expect(href).not.toContain('\\')
   })
 
-  it('refuses an entry id it cannot safely put in a path', () => {
-    for (const bad of ['..', '.', '', 'a/b', 'a\\b', '.hidden', 'a\u0000b', 'x'.repeat(200)]) {
-      expect(() => assetFilename(bad, 1, 'a.png'), bad).toThrow()
+  it('refuses only an entry id with nothing left in it', () => {
+    expect(() => assetFilename('', 1, 'a.png')).toThrow()
+    expect(() => assetFilename('x'.repeat(200), 1, 'a.png')).toThrow()
+  })
+
+  /*
+   * On the desktop an entry id is not generated, it is whatever the .md file
+   * was called, because the folder belongs to the user. Refusing these meant
+   * pasting an image into `Daily Note.md` threw, got swallowed, and looked
+   * like nothing had happened.
+   */
+  it('folds an id a filename cannot carry into one it can', () => {
+    for (const id of ['..', '.', 'a/b', 'a\\b', '.hidden', 'caf\u00e9', 'Daily Note', '2026-09-11 morning', '\u65e5\u8a18']) {
+      const filename = assetFilename(id, 1, 'a.png')
+      expect(filename, id).toMatch(/^[A-Za-z0-9][A-Za-z0-9._-]*\.png$/)
+      expect(filename, id).not.toContain('/')
+      expect(filename, id).not.toContain('\\')
+      expect(filename, id).not.toContain('..')
+    }
+  })
+
+  it('keeps a generated id exactly as it is', () => {
+    expect(assetFilename('2026-09-11-142233-a1b2c3', 1, 'a.png')).toBe(
+      '2026-09-11-142233-a1b2c3-1.png',
+    )
+  })
+
+  /* Two names that flatten the same way must not share a file. */
+  it('does not collapse two different ids onto one stem', () => {
+    expect(assetFilename('Daily Note', 1, 'a.png')).not.toBe(
+      assetFilename('Daily/Note', 1, 'a.png'),
+    )
+  })
+
+  /* Writing and deleting have to agree, or an image cannot be found again. */
+  it('recognises its own file for an id that had to be folded', () => {
+    for (const id of ['Daily Note', 'caf\u00e9', 'a/b']) {
+      const filename = assetFilename(id, 1, 'a.png')
+      expect(isAssetOf(filename, id), id).toBe(true)
+      expect(isAssetOf(filename, 'something else'), id).toBe(false)
+      expect(nextAssetIndex([filename], id), id).toBe(2)
     }
   })
 

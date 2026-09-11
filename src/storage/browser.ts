@@ -158,7 +158,9 @@ export class BrowserStorage implements StorageAdapter {
       | StoredAsset
       | undefined
     if (!found) return null
-    return new Uint8Array(await found.blob.arrayBuffer())
+    // Response rather than Blob.arrayBuffer, which is Safari 14 while
+    // tauri.conf.json still allows macOS 10.15 and its Safari 13.
+    return new Uint8Array(await new Response(found.blob).arrayBuffer())
   }
 
   async removeAssets(entryId: string): Promise<void> {

@@ -1,6 +1,15 @@
 import { EditorView } from '@codemirror/view'
-import type { Extension } from '@codemirror/state'
+import { Facet, type Extension } from '@codemirror/state'
 import { assetGateway } from './image'
+
+/**
+ * Reads an image straight off the OS clipboard, for the one engine that will
+ * not put it in the paste event. Null anywhere that does not need it.
+ */
+export const clipboardImageReader = Facet.define<
+  (() => Promise<File | null>) | null,
+  (() => Promise<File | null>) | null
+>({ combine: (values) => values[0] ?? null })
 
 /**
  * Takes images into the writing, and refuses everything else that is not text.
@@ -24,7 +33,40 @@ function isPlainText(file: File): boolean {
   return file.type ? file.type.startsWith('text/') : TEXT_EXTENSIONS.test(file.name)
 }
 
-const isImage = (file: File) => file.type.startsWith('image/')
+const IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|bmp|tiff?|avif|heic|heif|svg)$/i
+
+// Same shape as isPlainText, and for the same reason: some platforms hand
+// over a File with an empty type, leaving the name as the only evidence.
+const isImage = (file: File) =>
+  file.type ? file.type.startsWith('image/') : IMAGE_EXTENSIONS.test(file.name)
+
+/**
+ * The images on a clipboard or a drag, from whichever place this engine put
+ * them.
+ *
+ * `DataTransfer.files` is what Chromium fills in, and it is all this used to
+ * read. WebKit leaves it empty for a pasted screenshot and exposes the same
+ * bytes through `items` instead, so on the desktop app pasting an image did
+ * nothing at all while pasting text worked: caught by running the real
+ * bundled binary under a virtual display, not by reading the code.
+ *
+ * `getAsFile()` has to be called while the event is still being handled, so
+ * this runs synchronously and the async work happens on the Files it returns.
+ */
+function imagesFrom(data: DataTransfer | null | undefined): File[] {
+  if (!data) return []
+
+  const fromFiles = Array.from(data.files).filter(isImage)
+  if (fromFiles.length > 0) return fromFiles
+
+  const fromItems: File[] = []
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== 'file') continue
+    const file = item.getAsFile()
+    if (file && isImage(file)) fromItems.push(file)
+  }
+  return fromItems
+}
 
 /**
  * Writes each image and drops a reference on a line of its own.
@@ -42,7 +84,9 @@ async function insertImages(view: EditorView, files: File[], at: number): Promis
   for (const file of files) {
     let href: string | null = null
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer())
+      // Not `file.arrayBuffer()`: that is Safari 14, and tauri.conf.json still
+      // allows macOS 10.15, which ships Safari 13. Response goes back to 10.1.
+      const bytes = new Uint8Array(await new Response(file).arrayBuffer())
       href = await gateway.write(bytes, file.name || 'pasted')
     } catch (error) {
       console.error('Could not store the pasted image:', error)
@@ -79,11 +123,27 @@ async function insertImages(view: EditorView, files: File[], at: number): Promis
 export function fileDrop(): Extension {
   return EditorView.domEventHandlers({
     paste(event, view) {
-      const files = Array.from(event.clipboardData?.files ?? []).filter(isImage)
-      if (files.length === 0) return false
+      const files = imagesFrom(event.clipboardData)
+      if (files.length > 0) {
+        event.preventDefault()
+        void insertImages(view, files, view.state.selection.main.head)
+        return true
+      }
+
+      /*
+       * Nothing in the event. On WebKitGTK that is what a pasted image looks
+       * like, so ask the OS clipboard directly. Only when the clipboard holds
+       * no text as well, or this would swallow an ordinary text paste.
+       */
+      const reader = view.state.facet(clipboardImageReader)
+      if (!reader) return false
+      if (event.clipboardData?.getData('text/plain')) return false
 
       event.preventDefault()
-      void insertImages(view, files, view.state.selection.main.head)
+      const at = view.state.selection.main.head
+      void reader().then((file) => {
+        if (file) void insertImages(view, [file], at)
+      })
       return true
     },
 
@@ -91,7 +151,7 @@ export function fileDrop(): Extension {
       const files = Array.from(event.dataTransfer?.files ?? [])
       if (files.length === 0) return false
 
-      const images = files.filter(isImage)
+      const images = imagesFrom(event.dataTransfer)
       if (images.length > 0) {
         event.preventDefault()
         const at = view.posAtCoords({ x: event.clientX, y: event.clientY })
@@ -105,6 +165,20 @@ export function fileDrop(): Extension {
       // not an image leaves the page exactly as it was.
       event.preventDefault()
       return true
+    },
+
+    dragover(event) {
+      /*
+       * WebKitGTK 2.52 turned DataTransfer file access off for every non-Cocoa
+       * port, so on Linux a dropped file reaches neither `files` nor `items`.
+       * Left alone CodeMirror's own drop handler then inserts whatever
+       * text/plain carries, which for a file manager drag is a URI the writer
+       * never typed. Claiming the dragover is what stops that.
+       */
+      if (Array.from(event.dataTransfer?.types ?? []).includes('Files')) {
+        event.preventDefault()
+      }
+      return false
     },
   })
 }
