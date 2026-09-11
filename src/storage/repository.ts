@@ -96,6 +96,15 @@ export class EntryRepository {
     await this.adapter.write(entry.id, serializeEntryFile(entry))
   }
 
+  /** Stores image bytes against an entry and returns the relative href. */
+  async writeAsset(entryId: string, name: string, bytes: Uint8Array): Promise<string> {
+    return this.adapter.writeAsset(entryId, name, bytes)
+  }
+
+  async readAsset(href: string): Promise<Uint8Array | null> {
+    return this.adapter.readAsset(href)
+  }
+
   async remove(id: string): Promise<void> {
     this.cache.delete(id)
     this.lastSnapshotAt.delete(id)

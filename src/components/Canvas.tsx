@@ -48,6 +48,10 @@ function CanvasImpl() {
       parent,
       initialText: initial.currentBody,
       liveMarkdown: initial.settings.liveMarkdown,
+      assets: {
+        write: (bytes, name) => useStore.getState().saveImage(bytes, name),
+        url: (href) => useStore.getState().imageUrl(href),
+      },
       onChange: (text) => useStore.getState().setBody(text),
     })
     active = editor

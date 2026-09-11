@@ -65,19 +65,36 @@ test.describe('dropped files', () => {
   /*
    * CodeMirror reads any dropped file as text and inserts it, guarded only by
    * a search for control characters. SVG is text, so it passed that guard and
-   * landed in the middle of the word under the pointer.
+   * landed in the middle of the word under the pointer. An SVG is a real image
+   * and is now stored as one, but its contents must never be the thing that
+   * reaches the page.
    */
-  test('an SVG never lands in the writing', async ({ page }) => {
+  test('an SVG never lands in the writing as markup', async ({ page }) => {
     await freshApp(page)
     await page.keyboard.type('My morning pages.')
     await dropFile(page, 'logo.svg', 'image/svg+xml', '<svg xmlns="http://www.w3.org/2000/svg"/>')
-    expect(await docText(page)).toBe('My morning pages.')
+    // The sentence survives whole. An image is a block, so the reference goes
+    // on the line below rather than splitting the word under the pointer.
+    const text = await docText(page)
+    expect(text).not.toContain('<svg')
+    expect(text).not.toContain('xmlns')
+    expect(text).toMatch(/^My morning pages\.\n!\[\]\(attachments\/[\w.-]+\.svg\)\n$/)
   })
 
-  test('a PNG never lands in the writing', async ({ page }) => {
+  test('a dropped image becomes a reference, never its bytes', async ({ page }) => {
     await freshApp(page)
     await page.keyboard.type('Before.')
     await dropFile(page, 'shot.png', 'image/png', '\x89PNG\r\n\x1a\n')
+    const text = await docText(page)
+    expect(text).not.toContain('PNG')
+    expect(text).toMatch(/^Before\.\n!\[\]\(attachments\/[\w.-]+\.png\)\n$/)
+  })
+
+  /* Neither text nor an image: nothing at all beats something surprising. */
+  test('a dropped binary that is not an image is refused outright', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Before.')
+    await dropFile(page, 'archive.zip', 'application/zip', 'PK\x03\x04binary junk')
     expect(await docText(page)).toBe('Before.')
   })
 
