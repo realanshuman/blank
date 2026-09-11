@@ -38,7 +38,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       const entry = useStore.getState().currentEntry()
       if (!entry) return
       const { exportEntries } = await import('../export')
-      await exportEntries([entry], format)
+      await exportEntries([entry], format, useStore.getState().readImageBytes)
     }
 
     const list: Command[] = [
@@ -118,7 +118,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           const entries = useStore.getState().allEntries()
           if (entries.length === 0) return
           const { exportEntries } = await import('../export')
-          await exportEntries(entries, 'csv')
+          await exportEntries(entries, 'csv', useStore.getState().readImageBytes)
         },
       },
       {

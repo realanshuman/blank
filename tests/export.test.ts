@@ -1,6 +1,7 @@
 import { inflateRawSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { exportFilename, renderExport, toCsv, toDocxBlob, toJson, toPlainText } from '../src/export'
+import { fitWithin, readImage } from '../src/export/images'
 import type { Entry } from '../src/model/entry'
 
 function entry(overrides: Partial<Entry> = {}): Entry {
@@ -232,6 +233,55 @@ describe('images in a DOCX', () => {
       'word/document.xml',
     )
     expect(xml).toMatch(/<wp:docPr[^>]*descr="the harbour at dawn"/)
+  })
+})
+
+describe('reading image bytes', () => {
+  const TINY_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAADklEQVR42mNoQAIMODkAXzYSAZMbUt0AAAAASUVORK5CYII='
+
+  /**
+   * A JPEG header: SOI, a JFIF segment, then the start of frame that carries
+   * the size. Enough to measure, which is all the export reads it for, and the
+   * only way to cover this without a photograph in the repo.
+   */
+  function jpegHeader(width: number, height: number): Uint8Array {
+    const sof = [0xff, 0xc0, 0x00, 0x11, 0x08]
+    const dimensions = [height >> 8, height & 0xff, width >> 8, width & 0xff]
+    const components = [0x03, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01]
+    return new Uint8Array([
+      0xff, 0xd8,
+      0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00,
+      0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+      ...sof, ...dimensions, ...components,
+      0xff, 0xd9,
+    ])
+  }
+
+  it('measures a PNG', () => {
+    const image = readImage(new Uint8Array(Buffer.from(TINY_PNG, 'base64')))
+    expect(image).toEqual({ bytes: expect.anything(), format: 'png', width: 4, height: 3 })
+  })
+
+  it('measures a JPEG, whose frame gives the height first', () => {
+    expect(readImage(jpegHeader(1200, 800))).toMatchObject({
+      format: 'jpeg',
+      width: 1200,
+      height: 800,
+    })
+  })
+
+  it('refuses anything it cannot identify, rather than guessing', () => {
+    // The extension in the href is the name a clipboard item arrived with, so
+    // the bytes are the only evidence of what this really is.
+    expect(readImage(new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0]))).toBeNull()
+    expect(readImage(new Uint8Array(0))).toBeNull()
+    expect(readImage(new Uint8Array(Buffer.from('not an image at all')))).toBeNull()
+  })
+
+  it('scales down to the box and never up to it', () => {
+    expect(fitWithin(1600, 400, 160, 200)).toEqual({ width: 160, height: 40 })
+    expect(fitWithin(400, 1600, 160, 200)).toEqual({ width: 50, height: 200 })
+    expect(fitWithin(40, 30, 160, 200)).toEqual({ width: 40, height: 30 })
   })
 })
 

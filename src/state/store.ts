@@ -61,6 +61,8 @@ interface AppState {
   saveImage(bytes: Uint8Array, name: string): Promise<string | null>
   /** An object URL for a stored image, or null if the file has gone. */
   imageUrl(href: string): Promise<string | null>
+  /** Raw bytes for an export to embed, or null if the file has gone. */
+  readImageBytes(href: string): Promise<Uint8Array | null>
 
   updateSettings(patch: Partial<Settings>): void
   setQuery(query: string): void
@@ -276,6 +278,23 @@ export const useStore = create<AppState>((set, get) => ({
       return URL.createObjectURL(new Blob([buffer], { type: assetMimeType(href) }))
     } catch (error) {
       console.error('Could not read the image:', error)
+      return null
+    }
+  },
+
+  /*
+   * What an exporter is handed so it can embed a picture. The export module
+   * must not import storage: both shells, the dispatcher and every unit test
+   * import it, and a storage import there would drag Tauri and IndexedDB into
+   * all of them. The caller already holds the adapter, so the caller passes
+   * this in.
+   */
+  async readImageBytes(href: string) {
+    if (!repository) return null
+    try {
+      return await repository.readAsset(href)
+    } catch (error) {
+      console.error('Could not read the image for export:', error)
       return null
     }
   },

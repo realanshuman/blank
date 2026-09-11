@@ -165,3 +165,36 @@ test.describe('pasted images', () => {
     await expect(page.locator('.cm-blank-image img')).toHaveCount(1)
   })
 })
+
+test.describe('exports', () => {
+  /*
+   * The exporters cannot reach storage, so the caller passes a resolver in.
+   * Forget to thread it through and every export still renders, still looks
+   * finished, and quietly says the picture is missing. That is exactly the
+   * silent loss the image work exists to stop, so it is checked here against
+   * the real bytes rather than against the module.
+   */
+  test('a pasted image reaches the PDF', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('Standup notes.')
+    await page.keyboard.press('Enter')
+    await pasteImage(page, 200, 120)
+    await page.keyboard.type('It went fine.')
+    await page.waitForTimeout(900)
+
+    const started = page.waitForEvent('download')
+    await page.keyboard.press('Control+k')
+    await page.waitForSelector('.panel input')
+    await page.keyboard.type('PDF')
+    await page.waitForTimeout(300)
+    await page.keyboard.press('Enter')
+
+    const download = await started
+    const path = await download.path()
+    const pdf = (await import('node:fs')).readFileSync(path!).toString('latin1')
+
+    expect(pdf).toMatch(/\/Subtype\s*\/Image/)
+    expect(pdf).toMatch(/\/Width\s+200/)
+    expect(pdf).not.toMatch(/missing image|unsupported image/)
+  })
+})
