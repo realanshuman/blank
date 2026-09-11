@@ -129,7 +129,27 @@ class ImageWidget extends WidgetType {
       image.width = loaded.width
       image.height = loaded.height
       image.src = loaded.url
-      view.requestMeasure()
+
+      /*
+       * An empty transaction, not `requestMeasure()`.
+       *
+       * Measuring corrects the height map and the line positions, but it does
+       * not rebuild the selection layer, so the caret stayed painted where the
+       * estimate had put it: with a 420x320 picture it sat 140px above its own
+       * line, inside the image, and stayed there until the next keystroke. The
+       * error is exactly the difference between the real height and the
+       * estimate below, which is why a fixed estimate shrinks this and cannot
+       * remove it. Dispatching forces a full update, which redraws the cursor.
+       */
+      const settle = () => {
+        view.requestMeasure()
+        // An explicit selection spec, even to the value it already holds, is
+        // what sets `selectionSet` on the transaction, and that is what the
+        // selection layer redraws on.
+        const { anchor, head } = view.state.selection.main
+        view.dispatch({ selection: { anchor, head } })
+      }
+      image.decode().then(settle, settle)
     }
 
     const ready = this.cache.get(this.href)

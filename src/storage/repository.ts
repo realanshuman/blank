@@ -25,6 +25,8 @@ export class EntryRepository {
   private lastSnapshotAt = new Map<string, number>()
   private lastSnapshotWords = new Map<string, number>()
 
+  private assetWrites: Promise<void> = Promise.resolve()
+
   constructor(private adapter: StorageAdapter) {}
 
   get storageLocation(): string {
@@ -96,9 +98,27 @@ export class EntryRepository {
     await this.adapter.write(entry.id, serializeEntryFile(entry))
   }
 
-  /** Stores image bytes against an entry and returns the relative href. */
+  /**
+   * Stores image bytes against an entry and returns the relative href.
+   *
+   * Serialised, because both adapters pick the next free index by listing what
+   * is already there and then writing, with an await in between. Two pastes in
+   * quick succession both read the same list, both chose `-1`, and the second
+   * write replaced the first: the document ended up with two references to one
+   * file and the first picture was gone. On the native side that would
+   * overwrite a real file in the user's own folder.
+   */
   async writeAsset(entryId: string, name: string, bytes: Uint8Array): Promise<string> {
-    return this.adapter.writeAsset(entryId, name, bytes)
+    const next = this.assetWrites.then(
+      () => this.adapter.writeAsset(entryId, name, bytes),
+      () => this.adapter.writeAsset(entryId, name, bytes),
+    )
+    // Kept as a bare chain so one failed write cannot stall every later one.
+    this.assetWrites = next.then(
+      () => undefined,
+      () => undefined,
+    )
+    return next
   }
 
   async readAsset(href: string): Promise<Uint8Array | null> {

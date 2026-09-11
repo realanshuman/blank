@@ -209,6 +209,39 @@ test.describe('the insert menu', () => {
     expect(painted.z).toBe('20')
   })
 
+  /*
+   * The menu's keymap swallows Enter and the arrows whenever the field is
+   * open, so a menu that is open but not drawn is worse than one that never
+   * opens: typing `/ta` and pressing Enter inserted a task with nothing ever
+   * on screen. CodeMirror shrinks the visible band by the editor's scroll
+   * margins before deciding a clipped tooltip is off screen, and typewriter
+   * scrolling's margins left a 2px band.
+   */
+  test('is still drawn with typewriter scrolling on', async ({ page }) => {
+    await freshApp(page)
+    await page.getByTitle('Commands (⌘K)').click()
+    await page.getByText('Typewriter scrolling', { exact: true }).click()
+    await page.locator('.cm-content').click()
+
+    await page.keyboard.type('/ta')
+    await expect(menu(page)).toBeVisible()
+    const top = await menu(page).evaluate((node) => node.getBoundingClientRect().top)
+    expect(top).toBeGreaterThan(0)
+  })
+
+  /*
+   * A line beginning with a slash is ordinary content inside a fence, and
+   * choosing a row spliced Markdown into the code: `/cod` in an open block
+   * gave four fence lines and two empty blocks.
+   */
+  test('stays shut inside a code block', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('```')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('/')
+    await expect(menu(page)).toHaveCount(0)
+  })
+
   test('never hangs below the bottom bar', async ({ page }) => {
     await freshApp(page)
     for (let i = 0; i < 30; i += 1) await page.keyboard.type('A line of writing.\n')

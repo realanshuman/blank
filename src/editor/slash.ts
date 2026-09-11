@@ -8,6 +8,7 @@ import {
   type Tooltip,
   type TooltipView,
 } from '@codemirror/view'
+import { syntaxTree } from '@codemirror/language'
 import { matchItems } from '../model/menu'
 import { hardcoreField, programmatic } from './hardcore'
 import { SLASH_ITEMS, type SlashItem } from './slash-items'
@@ -17,7 +18,7 @@ const optionId = (id: string) => `blank-slash-opt-${id}`
 
 export const setSlashMenu = StateEffect.define<boolean>()
 const closeSlash = StateEffect.define<null>()
-const setActive = StateEffect.define<number>()
+const setActive = StateEffect.define<{ index: number; fromPointer: boolean }>()
 
 const slashEnabled = StateField.define<boolean>({
   create: () => true,
@@ -45,7 +46,17 @@ function tooltipAt(from: number): Tooltip {
     // CodeMirror draws its arrow as a #bbb triangle that would need its own
     // override in all four themes.
     arrow: false,
-    clip: true,
+    /*
+     * Not clipped. CodeMirror shrinks the visible band by the editor's scroll
+     * margins before deciding whether a clipped tooltip is off screen, and
+     * typewriter scrolling contributes margins of 337 top and 465 bottom on an
+     * 804px scroller. That leaves a 2px band, so the menu was parked at
+     * top: -10000px while its keymap went on swallowing Enter and the arrows:
+     * typing `/ta` and pressing Enter inserted a task with nothing ever drawn.
+     * The custom tooltipSpace below already keeps it inside the scroller and
+     * clear of the bar, so clipping bought nothing.
+     */
+    clip: false,
     create: createMenu,
   }
 }
@@ -59,9 +70,22 @@ function tooltipAt(from: number): Tooltip {
  * leaves ` / ` alone in running prose, which matters because that is how
  * quoted verse marks a line break.
  */
+const CODE_NODES = /^(FencedCode|CodeBlock|CodeText|InlineCode)$/
+
 function opensHere(state: EditorState, slashAt: number): boolean {
   const line = state.doc.lineAt(slashAt)
-  return state.doc.sliceString(line.from, slashAt).trim() === ''
+  if (state.doc.sliceString(line.from, slashAt).trim() !== '') return false
+
+  /*
+   * Not inside a code block. A line starting with a slash is ordinary content
+   * there, and choosing a row spliced Markdown into the code: `/cod` in an
+   * open fence gave four fence lines and two empty blocks.
+   */
+  for (let node = syntaxTree(state).resolveInner(slashAt, -1); node; node = node.parent!) {
+    if (CODE_NODES.test(node.name)) return false
+    if (!node.parent) break
+  }
+  return true
 }
 
 const slashField = StateField.define<SlashState | null>({
@@ -70,7 +94,21 @@ const slashField = StateField.define<SlashState | null>({
   update(value, tr) {
     for (const effect of tr.effects) {
       if (effect.is(closeSlash)) return null
-      if (effect.is(setActive) && value) return { ...value, active: effect.value, touched: true }
+      if (effect.is(setActive) && value) {
+        /*
+         * Only a key counts as touching the menu. Chromium fires mouseenter
+         * when a menu opens under a pointer that never moved, so hovering
+         * marked the row under the resting mouse as chosen and let the very
+         * next Enter commit it. That defeated the guard entirely: type two
+         * lines so the caret drops below the pointer, type a slash, press
+         * Enter for a newline, and get a bullet.
+         */
+        return {
+          ...value,
+          active: effect.value.index,
+          touched: value.touched || !effect.value.fromPointer,
+        }
+      }
     }
 
     // Switching entries or restoring a snapshot must not leave a menu open
@@ -178,6 +216,10 @@ function createMenu(view: EditorView): TooltipView {
   dom.append(list)
 
   let drawn = ''
+  let pointerMoved = false
+  dom.addEventListener('mousemove', () => {
+    pointerMoved = true
+  })
 
   const render = (state: EditorState) => {
     const value = state.field(slashField)
@@ -201,6 +243,9 @@ function createMenu(view: EditorView): TooltipView {
       const hint = document.createElement('span')
       hint.className = 'cm-blank-slash-hint'
       hint.textContent = item.hint(new Date())
+      // Or a screen reader reads the row as "Task dash left bracket right
+      // bracket". The hint teaches the Markdown by eye; it is not a name.
+      hint.setAttribute('aria-hidden', 'true')
       row.append(label, hint)
 
       // Without this the editor takes the click as a caret placement and the
@@ -216,27 +261,38 @@ function createMenu(view: EditorView): TooltipView {
         view.focus()
       })
       row.addEventListener('mouseenter', () => {
-        if (index !== value.active) view.dispatch({ effects: setActive.of(index) })
+        // The first boundary event can arrive without the mouse having moved
+        // at all, which is not somebody pointing at a row.
+        if (!pointerMoved) return
+        if (index !== value.active) {
+          view.dispatch({ effects: setActive.of({ index, fromPointer: true }) })
+        }
       })
 
       list.append(row)
     })
 
     list.children[value.active]?.scrollIntoView({ block: 'nearest' })
+    // Kept in step with the filter, or it goes on claiming nine options while
+    // one row is showing.
+    status.textContent = `Insert menu, ${items.length} options.`
   }
 
   render(view.state)
-  status.textContent = `Insert menu, ${SLASH_ITEMS.length} options.`
 
   return {
     dom,
     /*
-     * The -14 is the container's 5px padding plus a row's 9px, so the first
-     * label sits directly under the slash it replaced and the menu reads as
-     * attached to the writing rather than floating beside it. The 6 clears
-     * the line box, which the tooltip otherwise overlapped by 4px.
+     * The -15 is the panel's 1px border plus its 5px padding plus a row's
+     * 9px, so the first label sits directly under the slash it replaced and
+     * the menu reads as attached to the writing rather than floating beside
+     * it. Measured: -14 left it 1px right of the slash. The 6 clears the line
+     * box, which the tooltip otherwise overlapped by 4px.
+     *
+     * At phone widths the tooltip's own left clamp wins and the label lands
+     * about 5px right of the caret, which is not worth fighting.
      */
-    offset: { x: -14, y: 6 },
+    offset: { x: -15, y: 6 },
     update: (update) => render(update.state),
   }
 }
@@ -249,7 +305,7 @@ function move(step: number): Command {
     if (count === 0) return false
     // Clamped rather than wrapped, which is what the command palette does.
     const active = Math.max(0, Math.min(count - 1, value.active + step))
-    view.dispatch({ effects: setActive.of(active) })
+    view.dispatch({ effects: setActive.of({ index: active, fromPointer: false }) })
     return true
   }
 }

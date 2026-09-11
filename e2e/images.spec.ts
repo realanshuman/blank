@@ -166,6 +166,44 @@ test.describe('pasted images', () => {
   })
 })
 
+test.describe('two images at once', () => {
+  /*
+   * Both adapters pick the next free index by listing the folder and then
+   * writing, with an await in between. Two pastes in quick succession both
+   * read the same list, both chose `-1`, and the second write replaced the
+   * first: two references to one file and the first picture gone. On the
+   * native side that overwrites a real file in the user's own folder.
+   */
+  test('pasted in the same tick get separate files', async ({ page }) => {
+    await freshApp(page)
+    await page.evaluate(async () => {
+      const make = async (colour: string) => {
+        const canvas = document.createElement('canvas')
+        canvas.width = 40
+        canvas.height = 40
+        const context = canvas.getContext('2d')!
+        context.fillStyle = colour
+        context.fillRect(0, 0, 40, 40)
+        const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/png'))
+        const transfer = new DataTransfer()
+        transfer.items.add(new File([blob!], 'p.png', { type: 'image/png' }))
+        return transfer
+      }
+      const content = document.querySelector('.cm-content')!
+      const first = await make('#ff0000')
+      const second = await make('#00ff00')
+      content.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: first }))
+      content.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: second }))
+    })
+    await page.waitForTimeout(1500)
+
+    const refs = [...(await docText(page)).matchAll(/attachments\/[\w.-]+/g)].map((m) => m[0])
+    expect(refs).toHaveLength(2)
+    expect(new Set(refs).size).toBe(2)
+    await expect(page.locator('.cm-blank-image img')).toHaveCount(2)
+  })
+})
+
 test.describe('exports', () => {
   /*
    * The exporters cannot reach storage, so the caller passes a resolver in.

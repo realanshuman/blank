@@ -13,8 +13,12 @@ import { keymap, type Command } from '@codemirror/view'
  * case below can be handled, and so the bindings sit at a precedence this file
  * controls.
  */
-/** A list item with a marker and nothing on it. Task markers count. */
-const EMPTY_ITEM = /^[ \t]*(?:[-*+]|\d+[.)])(?:[ \t]+\[[ xX]\])?[ \t]*$/
+/**
+ * A list item with a marker and nothing on it. Task markers count, and so
+ * does a blockquote: leaving one took two presses and parked a stray `>`,
+ * even though Quote is one of the insert menu's rows.
+ */
+const EMPTY_ITEM = /^[ \t]*(?:[-*+]|\d+[.)]|>)(?:[ \t]+\[[ xX]\])?[ \t]*$/
 
 const continueMarkup: Command = (view) => {
   const { state } = view
@@ -62,11 +66,29 @@ function toggleWrap(marker: string): Command {
     const width = marker.length
 
     const selection = state.changeByRange((range) => {
+      /*
+       * The run either side has to be exactly this marker, not the inside of a
+       * longer one. Without that, italic on the word inside `**word**` saw the
+       * inner asterisk, called it wrapped, and turned bold into italic:
+       * pressing Mod-B then Mod-I destroyed the bold it had just added.
+       */
+      const outerBefore = state.doc.sliceString(
+        Math.max(0, range.from - width - 1),
+        Math.max(0, range.from - width),
+      )
+      const outerAfter = state.doc.sliceString(
+        Math.min(state.doc.length, range.to + width),
+        Math.min(state.doc.length, range.to + width + 1),
+      )
+      const edge = marker[0] ?? '*'
+
       const wrapped =
         range.from - width >= 0 &&
         range.to + width <= state.doc.length &&
         state.doc.sliceString(range.from - width, range.from) === marker &&
-        state.doc.sliceString(range.to, range.to + width) === marker
+        state.doc.sliceString(range.to, range.to + width) === marker &&
+        outerBefore !== edge &&
+        outerAfter !== edge
 
       if (wrapped) {
         return {

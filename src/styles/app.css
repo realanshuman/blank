@@ -536,7 +536,7 @@ button {
  * is the same bargain a heading's hashes and a block's fences already make.
  */
 .cm-blank-image {
-  margin: 0.4em 0 0.9em;
+  margin: 0 0 0.9em;
   line-height: 0;
 }
 
@@ -545,20 +545,32 @@ button {
      size: an upscaled screenshot looks broken rather than generous. */
   max-width: 100%;
   height: auto;
+  /* The global `* { box-sizing: border-box }` made the width set on the
+     element its BORDER box, so every picture was drawn 2px smaller than it
+     is: a 16px favicon came out at 14 and resampled to mush. */
+  box-sizing: content-box;
   border-radius: 4px;
   /* An image is usually a photograph or a screenshot with its own white
      ground, so it needs an edge or it bleeds into a light page. */
   border: 1px solid var(--blank-rule);
 }
 
+/*
+ * The one place this feature has to tell the writer something, so it is not
+ * the quietest thing on the page. It was --blank-faint at 1.98:1 inside a box
+ * the full width of the column, which put less weight on the message than on
+ * the machine reference above it. The box is now the size of its own text and
+ * starts on the same left edge as the prose.
+ */
 .cm-blank-image.is-missing {
-  padding: 10px 12px;
+  width: fit-content;
+  padding: 10px 12px 10px 0;
   border: 1px dashed var(--blank-rule);
   border-radius: 6px;
   font-family: var(--blank-ui-font);
   font-size: var(--blank-ui-size);
   line-height: 1.4;
-  color: var(--blank-faint);
+  color: var(--blank-muted);
 }
 
 /*
@@ -566,9 +578,18 @@ button {
  * stays selectable and copyable, which is what makes moving an image between
  * entries work at all.
  */
+/*
+ * Measured: the reference sat 0px under the sentence above it and 7.2px above
+ * its own picture, so it read as belonging to the paragraph rather than
+ * captioning the image, and its 20.7px line box broke the 28.8px paragraph
+ * rhythm. The air moves to the other side of it and the division restores a
+ * full-height line.
+ */
 .cm-blank-image-ref {
   font-family: var(--blank-mono);
   font-size: 0.72em;
+  line-height: calc(var(--blank-line-height) / 0.72);
+  margin-top: 0.5em;
   color: var(--blank-faint);
 }
 
@@ -633,7 +654,6 @@ button {
 .cm-blank-slash-item {
   display: flex;
   align-items: center;
-  gap: 10px;
   width: 100%;
   padding: 6px 9px;
   border-radius: 6px;
@@ -664,23 +684,36 @@ button {
  * what makes the menu teach its own obsolescence: after a week of reading
  * `- [ ]` the writer just types it.
  */
-/*
- * Without min-width: 0 a flex child refuses to shrink below its content, so a
- * long label would push the hint out of the menu rather than give way. That
- * exact fault has already been fixed once in the history rows.
- */
+/* The row's identity. It keeps its width and the hint gives way instead. */
 .cm-blank-slash-label {
+  flex: none;
+}
+
+/*
+ * --blank-muted, not --blank-faint. Measured at faint these were 1.90:1 in
+ * light and 2.34:1 at best in black, against a 4.5 floor, and they got worse
+ * on the selected row because the fill moved toward the text while the colour
+ * stayed put. A hint nobody can resolve cannot teach the Markdown it exists to
+ * teach. Muted gives 5.11 light, 5.07 dark, 5.89 black.
+ *
+ * It truncates rather than the label, because the label is the row's identity
+ * and the hint is a preview: a real date in Catalan is 152px and was clipping
+ * "Today's date" to "Today'...".
+ */
+.cm-blank-slash-hint {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.cm-blank-slash-hint {
-  flex: none;
   margin-left: auto;
+  padding-left: 10px;
   font-family: var(--blank-mono);
   font-size: 11px;
-  color: var(--blank-faint);
+  color: var(--blank-muted);
+}
+
+/* Muted only reaches 4.39 on the active fill, so the selected row takes ink. */
+.cm-blank-slash-item.is-active .cm-blank-slash-hint {
+  color: var(--blank-fg);
 }
 
 /*
@@ -710,10 +743,33 @@ button {
   border: 0;
 }
 
-/* A finger needs a bigger target than a caret does. */
+/*
+ * A shadow of rgba(0,0,0,0.18) over #000000 is #000000, so on the two dark
+ * themes the border is the only thing holding the panel off the page.
+ * Measured, it was 1.23:1 on black and 1.20:1 on dark; these give 1.55 and
+ * 1.46. Light and sepia keep their current look, where the shadow does the
+ * work instead.
+ */
+:root[data-theme='dark'] .cm-editor .cm-tooltip.cm-blank-slash {
+  border-color: #34343c;
+}
+
+:root[data-theme='black'] .cm-editor .cm-tooltip.cm-blank-slash {
+  border-color: #2e2e2e;
+}
+
+/*
+ * A finger needs a bigger target than a caret does, and nine of them need
+ * somewhere to go: at 44px the list is 406px and the 300px cap hid three rows
+ * behind a scroll gesture inside a 248px popover.
+ */
 @media (pointer: coarse) {
   .cm-blank-slash-item {
     min-height: 44px;
+  }
+
+  .cm-editor .cm-tooltip.cm-blank-slash {
+    max-height: min(420px, 62vh);
   }
 }
 
@@ -867,7 +923,9 @@ button {
     transform: none;
   }
 
-  .cm-blank-slash {
+  /* Three classes, or it loses to the base rule the same way the base rule
+     had to beat CodeMirror's. A media query adds no specificity. */
+  .cm-editor .cm-tooltip.cm-blank-slash {
     animation: none;
   }
 }

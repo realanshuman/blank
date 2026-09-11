@@ -186,6 +186,17 @@ test.describe('list continuation', () => {
    * filters those out. Without a fallback the transaction is dropped and
    * Enter looks broken on an empty bullet.
    */
+  /* Quote is one of the insert menu's rows, so leaving one should not take
+     two presses and park a stray marker on the page. */
+  test('Enter leaves a blockquote in one press', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('> a thought')
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('prose')
+    expect(await docText(page)).toBe('> a thought\n\nprose')
+  })
+
   test('Enter still works on an empty item in hardcore mode', async ({ page }) => {
     await freshApp(page)
     await (await writingControl(page, 'When off, the text can only grow, with no deleting')).click()
@@ -214,6 +225,22 @@ test.describe('bold and italic', () => {
     await page.keyboard.press('Control+b')
     await page.keyboard.press('Control+b')
     expect(await docText(page)).toBe('word')
+  })
+
+  /*
+   * Italic saw the inner asterisk of a `**` pair, called the selection
+   * already wrapped, and unwrapped it: Mod-B then Mod-I destroyed the bold it
+   * had just added.
+   */
+  test('nest rather than cancelling each other', async ({ page }) => {
+    await freshApp(page)
+    await page.keyboard.type('word')
+    await page.keyboard.press('Control+a')
+    await page.keyboard.press('Control+b')
+    expect(await docText(page)).toBe('**word**')
+    await page.keyboard.press('Control+a')
+    await page.keyboard.press('Control+i')
+    expect(await docText(page)).toBe('***word***')
   })
 
   test('put the caret between the markers when nothing is selected', async ({ page }) => {
