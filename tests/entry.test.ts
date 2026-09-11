@@ -130,6 +130,38 @@ describe('word counting', () => {
     expect(countWords('')).toBe(0)
     expect(countWords('   \n\t ')).toBe(0)
   })
+
+  it('does not count a pasted image as a word', () => {
+    // A pasted image is a file reference, not writing. The count drives the
+    // session WPM and gates snapshotting, so every picture used to pad it.
+    expect(countWords('![](attachments/2026-09-10-142233-a1b2-1.png)')).toBe(0)
+    expect(countWords('hello ![](attachments/2026-09-10-142233-a1b2-1.png)')).toBe(1)
+  })
+
+  it('still counts alt text the writer typed', () => {
+    // Only the syntax and the path go: an alt is words, and dropping them
+    // would be the same bug pointing the other way.
+    expect(countWords('![a sunset over the bay](attachments/x-1.png)')).toBe(5)
+    expect(countWords('before ![a sunset](attachments/x-1.png) after')).toBe(4)
+  })
+})
+
+describe('images in a title and an excerpt', () => {
+  // cleanTitleLine already strips `![alt](url)`, so both of these were correct
+  // before images existed. Pinned here because nothing else proves it.
+  it('does not make a file path the title', () => {
+    expect(
+      deriveTitle({ body: '![](attachments/2026-09-10-142233-a1b2-1.png)\n\nThe real first line.' }),
+    ).toBe('The real first line.')
+  })
+
+  it('falls back to the alt text when the image is all there is', () => {
+    expect(deriveTitle({ body: '![a sunset](attachments/x-1.png)' })).toBe('a sunset')
+  })
+
+  it('keeps a file path out of the excerpt', () => {
+    expect(excerptOf('Title line\n\n![](attachments/x-1.png)\n\nThe body.')).toBe('The body.')
+  })
 })
 
 describe('excerpt', () => {

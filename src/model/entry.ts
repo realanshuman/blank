@@ -164,6 +164,17 @@ export function serializeEntryFile(entry: Entry): string {
   return lines.join('\n') + entry.body
 }
 
+/**
+ * A pasted image is `![](attachments/<id>-1.png)`: a file reference the writer
+ * never typed, sitting in the middle of their prose. Only the alt text is
+ * theirs, so only the alt text survives.
+ */
+const IMAGE_REF = /!\[([^\]]*)\]\([^)]*\)/g
+
+export function stripImageRefs(text: string): string {
+  return text.replace(IMAGE_REF, '$1')
+}
+
 /** Strip markdown noise from a line so the sidebar shows readable titles. */
 export function cleanTitleLine(line: string): string {
   return line
@@ -172,7 +183,7 @@ export function cleanTitleLine(line: string): string {
     .replace(/^\s*[-*+]\s+/, '')
     .replace(/^\s*\d+[.)]\s+/, '')
     .replace(/^\s*(?:[-*_]\s*){3,}$/, '')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(IMAGE_REF, '$1')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
@@ -209,9 +220,13 @@ export function excerptOf(body: string, limit = 120): string {
 /**
  * Word counting that matches what a writer expects: CJK characters count
  * individually, everything else splits on whitespace.
+ *
+ * Images go first. A reference is one whitespace-delimited token, so every
+ * pasted picture used to score as a word in the number that drives the session
+ * WPM and gates snapshotting on a minimum word delta.
  */
 export function countWords(text: string): number {
-  const stripped = text.replace(/[‘’“”]/g, '')
+  const stripped = stripImageRefs(text).replace(/[‘’“”]/g, '')
   const cjk = stripped.match(/[぀-ヿ㐀-䶿一-鿿豈-﫿]/g)?.length ?? 0
   const latin = stripped
     .replace(/[぀-ヿ㐀-䶿一-鿿豈-﫿]/g, ' ')

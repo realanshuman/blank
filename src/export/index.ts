@@ -2,16 +2,31 @@ import type { Token, Tokens } from 'marked'
 import {
   Document,
   HeadingLevel,
+  ImageRun,
   Packer,
   Paragraph,
   SymbolRun,
   Tab,
   TextRun,
   type IParagraphOptions,
+  type ParagraphChild,
 } from 'docx'
 import { countWords, deriveTitle, type Entry } from '../model/entry'
 import { lexBody, toPdfBytes } from './pdf'
+import {
+  fitWithin,
+  imageNote,
+  NO_IMAGES,
+  outcomeFor,
+  REASON_NOTE,
+  resolveImages,
+  type AssetResolver,
+  type ExportImage,
+  type ImageBook,
+} from './images'
 import { saveFile } from './save'
+
+export type { AssetResolver } from './images'
 
 export type ExportFormat = 'txt' | 'md' | 'csv' | 'json' | 'docx' | 'pdf'
 
@@ -37,7 +52,12 @@ export function toPlainText(markdown: string): string {
     .replace(/^\s{0,3}#{1,6}\s+/gm, '')
     .replace(/^\s{0,3}>\s?/gm, '')
     .replace(/^\s*[-*+]\s+/gm, '• ')
-    .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, '$1')
+    // Plain text cannot show a picture, but it can say there was one and name
+    // the file. Keeping only the alt text used to leave a pasted image, whose
+    // alt is empty, as a blank line.
+    .replace(/!\[([^\]]*)\]\(([^)]*)\)/g, (_match, alt: string, href: string) =>
+      imageNote(alt, href),
+    )
     .replace(/\[([^\]]*)\]\(([^)]*)\)/g, '$1 ($2)')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
     .replace(/(\*|_)(.*?)\1/g, '$2')
@@ -117,34 +137,86 @@ interface RunStyle {
   color?: string
 }
 
+/**
+ * Word's text column, in CSS pixels, which is the unit ImageRun measures in.
+ * A4 is 11906 twips wide and 16838 tall, docx's own default section takes 1440
+ * from each side, and there are 1440 twips and 96 pixels to the inch.
+ */
+const COLUMN_PX = ((11906 - 1440 * 2) / 1440) * 96
+const COLUMN_HEIGHT_PX = ((16838 - 1440 * 2) / 1440) * 96
+
+/** Muted, so a note about a picture reads as the export talking, not the writer. */
+const NOTE_COLOR = '6E6E6E'
+
+/**
+ * A picture, scaled to the column and no further. Word will happily place an
+ * inline image wider than the page and then clip it at the margin.
+ */
+function imageRun(image: ExportImage, alt: string): ImageRun {
+  const fitted = fitWithin(image.width, image.height, COLUMN_PX, COLUMN_HEIGHT_PX)
+  const written = alt.trim()
+
+  return new ImageRun({
+    type: image.format === 'png' ? 'png' : 'jpg',
+    data: image.bytes,
+    transformation: { width: fitted.width, height: fitted.height },
+    // Where the writer's own words about a picture go: Word shows them in the
+    // alt text panel and a screen reader reads them out.
+    ...(written ? { altText: { name: written, description: written, title: written } } : {}),
+  })
+}
+
 /** Flatten marked's inline token tree into styled docx runs. */
-function inlineRuns(tokens: Token[] | undefined, style: RunStyle = {}): TextRun[] {
+function inlineRuns(
+  tokens: Token[] | undefined,
+  style: RunStyle = {},
+  images: ImageBook = NO_IMAGES,
+): ParagraphChild[] {
   if (!tokens) return []
-  const runs: TextRun[] = []
+  const runs: ParagraphChild[] = []
 
   for (const token of tokens) {
     switch (token.type) {
       case 'strong':
-        runs.push(...inlineRuns(token.tokens, { ...style, bold: true }))
+        runs.push(...inlineRuns(token.tokens, { ...style, bold: true }, images))
         break
       case 'em':
-        runs.push(...inlineRuns(token.tokens, { ...style, italics: true }))
+        runs.push(...inlineRuns(token.tokens, { ...style, italics: true }, images))
         break
       case 'del':
-        runs.push(...inlineRuns(token.tokens, { ...style, strike: true }))
+        runs.push(...inlineRuns(token.tokens, { ...style, strike: true }, images))
         break
       case 'codespan':
         runs.push(new TextRun({ text: token.text, font: 'Consolas', ...style }))
         break
       case 'link':
-        runs.push(...inlineRuns(token.tokens, style))
+        runs.push(...inlineRuns(token.tokens, style, images))
         break
+      case 'image': {
+        // The bug: an image fell through to the default branch below, which
+        // pushed a run of its alt text, and a pasted image has no alt, so Word
+        // got an empty run where the picture should have been.
+        const outcome = outcomeFor(images, token.href)
+        if (outcome.ok) {
+          runs.push(imageRun(outcome.image, token.text))
+        } else {
+          runs.push(
+            new TextRun({
+              ...style,
+              text: imageNote(token.text, token.href, REASON_NOTE[outcome.reason]),
+              italics: true,
+              color: NOTE_COLOR,
+            }),
+          )
+        }
+        break
+      }
       case 'br':
         runs.push(new TextRun({ text: '', break: 1 }))
         break
       case 'text':
         if ('tokens' in token && token.tokens?.length) {
-          runs.push(...inlineRuns(token.tokens, style))
+          runs.push(...inlineRuns(token.tokens, style, images))
         } else {
           // A newline inside a paragraph is a soft break meaning a space; only
           // an explicit `br` is a real line break.
@@ -183,7 +255,7 @@ const TASK_DONE_COLOR = '6E6E6E'
  */
 const TASK_INDENT = { left: 720, hanging: 360 }
 
-function taskParagraph(item: Tokens.ListItem): Paragraph {
+function taskParagraph(item: Tokens.ListItem, images: ImageBook): Paragraph {
   const checked = item.checked === true
   return new Paragraph({
     children: [
@@ -198,14 +270,14 @@ function taskParagraph(item: Tokens.ListItem): Paragraph {
       // A finished item recedes into grey instead of being struck through,
       // which is the call the editor already makes: a mostly-done list stays
       // readable.
-      ...inlineRuns(item.tokens, checked ? { color: TASK_DONE_COLOR } : {}),
+      ...inlineRuns(item.tokens, checked ? { color: TASK_DONE_COLOR } : {}, images),
     ],
     indent: TASK_INDENT,
     spacing: { after: 80 },
   })
 }
 
-function blockParagraphs(tokens: Token[]): Paragraph[] {
+function blockParagraphs(tokens: Token[], images: ImageBook): Paragraph[] {
   const paragraphs: Paragraph[] = []
 
   for (const token of tokens) {
@@ -213,7 +285,7 @@ function blockParagraphs(tokens: Token[]): Paragraph[] {
       case 'heading': {
         const level = HEADING_LEVELS[Math.min(token.depth, 6) - 1]
         const options: IParagraphOptions = {
-          children: inlineRuns(token.tokens),
+          children: inlineRuns(token.tokens, {}, images),
           spacing: { before: 240, after: 120 },
         }
         paragraphs.push(new Paragraph(level ? { ...options, heading: level } : options))
@@ -221,15 +293,17 @@ function blockParagraphs(tokens: Token[]): Paragraph[] {
       }
       case 'paragraph':
         paragraphs.push(
-          new Paragraph({ children: inlineRuns(token.tokens), spacing: { after: 160 } }),
+          new Paragraph({ children: inlineRuns(token.tokens, {}, images), spacing: { after: 160 } }),
         )
         break
       case 'blockquote':
         paragraphs.push(
           new Paragraph({
-            children: inlineRuns('tokens' in token ? token.tokens : undefined, {
-              italics: true,
-            }),
+            children: inlineRuns(
+              'tokens' in token ? token.tokens : undefined,
+              { italics: true },
+              images,
+            ),
             indent: { left: 480 },
             spacing: { after: 160 },
           }),
@@ -241,12 +315,12 @@ function blockParagraphs(tokens: Token[]): Paragraph[] {
           // `checked`. The `checkbox` token it puts inside the item has no
           // text of its own, so inlineRuns still yields just the item's words.
           if (item.task) {
-            paragraphs.push(taskParagraph(item))
+            paragraphs.push(taskParagraph(item, images))
             continue
           }
           paragraphs.push(
             new Paragraph({
-              children: inlineRuns(item.tokens),
+              children: inlineRuns(item.tokens, {}, images),
               bullet: token.ordered ? undefined : { level: 0 },
               numbering: undefined,
               indent: token.ordered ? { left: 480 } : undefined,
@@ -279,11 +353,11 @@ function blockParagraphs(tokens: Token[]): Paragraph[] {
   return paragraphs
 }
 
-export async function toDocxBlob(entry: Entry): Promise<Blob> {
+export async function toDocxBlob(entry: Entry, images: ImageBook = NO_IMAGES): Promise<Blob> {
   // Shared lexing with the PDF path: a single newline is the writer's line
   // break, not a soft break to be collapsed.
   const tokens = lexBody(entry.body)
-  const body = blockParagraphs(tokens)
+  const body = blockParagraphs(tokens, images)
 
   const document = new Document({
     creator: 'Blank',
@@ -311,12 +385,25 @@ const MIME: Record<ExportFormat, string> = {
 }
 
 /**
+ * Read the images for the formats that can draw one. The text formats keep the
+ * markdown reference as it stands, so they never pay for a file read.
+ */
+async function imagesFor(entry: Entry, resolve: AssetResolver | undefined): Promise<ImageBook> {
+  return resolve ? resolveImages(lexBody(entry.body), resolve) : NO_IMAGES
+}
+
+/**
  * Produce the bytes for a format. Kept separate from saving so the content can
  * be tested without a filesystem or a browser.
+ *
+ * `resolveAsset` is how image bytes get in. It is optional because storage is
+ * the caller's business, not this module's: without one, a PDF or a DOCX says
+ * on the page that a picture is missing instead of pretending there was none.
  */
 export async function renderExport(
   entries: Entry[],
   format: ExportFormat,
+  resolveAsset?: AssetResolver,
 ): Promise<{ data: Uint8Array | string; filename: string }> {
   const first = entries[0]
   if (!first) throw new Error('nothing to export')
@@ -339,19 +426,26 @@ export async function renderExport(
     case 'json':
       return { data: toJson(entries), filename: 'blank-entries.json' }
     case 'docx': {
-      const blob = await toDocxBlob(first)
+      const blob = await toDocxBlob(first, await imagesFor(first, resolveAsset))
       return {
         data: new Uint8Array(await blob.arrayBuffer()),
         filename: exportFilename(first, 'docx'),
       }
     }
     case 'pdf':
-      return { data: toPdfBytes(first), filename: exportFilename(first, 'pdf') }
+      return {
+        data: toPdfBytes(first, await imagesFor(first, resolveAsset)),
+        filename: exportFilename(first, 'pdf'),
+      }
   }
 }
 
-export async function exportEntries(entries: Entry[], format: ExportFormat): Promise<void> {
+export async function exportEntries(
+  entries: Entry[],
+  format: ExportFormat,
+  resolveAsset?: AssetResolver,
+): Promise<void> {
   if (entries.length === 0) return
-  const { data, filename } = await renderExport(entries, format)
+  const { data, filename } = await renderExport(entries, format, resolveAsset)
   await saveFile(data, filename, MIME[format])
 }

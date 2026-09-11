@@ -1,6 +1,15 @@
 import { jsPDF } from 'jspdf'
 import { marked, type Token } from 'marked'
-import { cleanTitleLine, deriveTitle, type Entry } from '../model/entry'
+import { cleanTitleLine, deriveTitle, stripImageRefs, type Entry } from '../model/entry'
+import {
+  fitWithin,
+  imageNote,
+  NO_IMAGES,
+  outcomeFor,
+  REASON_NOTE,
+  type ExportImage,
+  type ImageBook,
+} from './images'
 
 /**
  * PDF generation, laid out by hand rather than handed to the system print
@@ -31,6 +40,14 @@ interface Style {
 }
 
 const BODY: Style = { size: 11, leading: 1.55, font: 'times', weight: 'normal', before: 0, after: 3.4 }
+
+/** A screenshot's pixels are CSS pixels, and there are 96 of those to the inch. */
+const PX_TO_MM = 25.4 / 96
+
+/** An image is never split across a page, so it can never be taller than one. */
+const IMAGE_MAX_HEIGHT = PAGE.height - MARGIN.top - MARGIN.bottom
+
+const IMAGE_SPACE = { before: 2, after: 3.4 }
 
 const HEADING: Record<number, Style> = {
   1: { size: 19, leading: 1.25, font: 'times', weight: 'bold', before: 5, after: 3.2 },
@@ -82,7 +99,13 @@ export function stripLeadingTitle(body: string, title: string): string {
   let first = 0
   while (first < lines.length && (lines[first] ?? '').trim() === '') first += 1
   if (first >= lines.length) return body
-  if (cleanTitleLine(lines[first] ?? '') !== title) return body
+
+  const line = lines[first] ?? ''
+  if (cleanTitleLine(line) !== title) return body
+  // An entry that opens with a captioned image has that caption for a title,
+  // since the alt is the only text on the line. The masthead can print the
+  // words but not the picture, so the line stays and the alt reads twice.
+  if (stripImageRefs(line) !== line) return body
 
   let next = first + 1
   if (next < lines.length && (lines[next] ?? '').trim() === '') next += 1
@@ -99,6 +122,12 @@ export function flattenInline(tokens: Token[] | undefined): string {
   for (const token of tokens) {
     if (token.type === 'br') {
       out += '\n'
+    } else if (token.type === 'image') {
+      // Flattening is what happens where a picture cannot be laid out: inside
+      // a heading, a list item or a quote. An image token's text is its alt,
+      // which a paste leaves empty, so recursing into it yielded '' and the
+      // image vanished from the page without a trace.
+      out += imageNote(token.text, token.href)
     } else if ('tokens' in token && Array.isArray(token.tokens) && token.type !== 'codespan') {
       out += flattenInline(token.tokens)
     } else if ('text' in token && typeof token.text === 'string') {
@@ -247,16 +276,102 @@ class Layout {
     const end = this.y - 5
     if (end > start) this.doc.line(MARGIN.left + 1.5, start, MARGIN.left + 1.5, end)
   }
+
+  /**
+   * A picture, at its own size or the column's, whichever is smaller.
+   *
+   * ensureRoom is asked for the whole height at once, so an image that will
+   * not fit in what is left of the page starts the next one instead of being
+   * cut in half. That works because the fit above has already made it no
+   * taller than a page's text column.
+   */
+  image(image: ExportImage, alt: string, href: string): void {
+    const fitted = fitWithin(
+      image.width * PX_TO_MM,
+      image.height * PX_TO_MM,
+      CONTENT_WIDTH,
+      IMAGE_MAX_HEIGHT,
+    )
+
+    this.y += IMAGE_SPACE.before
+    this.ensureRoom(fitted.height)
+
+    try {
+      this.doc.addImage(
+        image.bytes,
+        image.format === 'png' ? 'PNG' : 'JPEG',
+        MARGIN.left,
+        this.y,
+        fitted.width,
+        fitted.height,
+      )
+    } catch {
+      // jsPDF parses the bytes itself and throws on anything it does not
+      // recognise. Whatever went wrong, the reader is told there was a
+      // picture here: dropping it in silence is the bug this is fixing.
+      this.note(imageNote(alt, href, 'unsupported image'))
+      return
+    }
+
+    this.y += fitted.height + IMAGE_SPACE.after
+
+    // The alt is the only writing attached to a picture, and it used to be
+    // the paragraph's whole text, so losing it now would trade one silent
+    // disappearance for another.
+    if (alt.trim()) this.caption(alt.trim())
+  }
+
+  /** Something the export needs to tell the reader, set apart from the prose. */
+  note(text: string): void {
+    this.block(text, { ...BODY, weight: 'italic', grey: true, before: 1 })
+  }
+
+  private caption(text: string): void {
+    this.block(text, { ...BODY, size: 9, weight: 'italic', grey: true, before: 0, after: 3.4 })
+  }
 }
 
-function renderTokens(layout: Layout, tokens: Token[], depth = 0): void {
+/**
+ * A paragraph, broken at its images. jsPDF has no inline layout, so a picture
+ * interrupts the text rather than sitting inside it, and the words on either
+ * side are set as blocks of their own.
+ */
+function renderParagraph(layout: Layout, tokens: Token[] | undefined, images: ImageBook): void {
+  if (!tokens) return
+  let run: Token[] = []
+
+  const flush = (): void => {
+    if (run.length === 0) return
+    layout.block(flattenInline(run), BODY)
+    run = []
+  }
+
+  for (const token of tokens) {
+    if (token.type !== 'image') {
+      run.push(token)
+      continue
+    }
+
+    flush()
+    const outcome = outcomeFor(images, token.href)
+    if (outcome.ok) {
+      layout.image(outcome.image, token.text, token.href)
+    } else {
+      layout.note(imageNote(token.text, token.href, REASON_NOTE[outcome.reason]))
+    }
+  }
+
+  flush()
+}
+
+function renderTokens(layout: Layout, tokens: Token[], images: ImageBook, depth = 0): void {
   for (const token of tokens) {
     switch (token.type) {
       case 'heading':
         layout.block(flattenInline(token.tokens), HEADING[Math.min(token.depth, 6)] ?? HEADING[6]!)
         break
       case 'paragraph':
-        layout.block(flattenInline(token.tokens), BODY)
+        renderParagraph(layout, token.tokens, images)
         break
       case 'blockquote':
         layout.quote(flattenInline('tokens' in token ? token.tokens : undefined))
@@ -316,8 +431,11 @@ function renderTokens(layout: Layout, tokens: Token[], depth = 0): void {
   }
 }
 
-/** Render one entry to PDF bytes. */
-export function toPdfBytes(entry: Entry): Uint8Array {
+/**
+ * Render one entry to PDF bytes. The images are already resolved: the layout
+ * is synchronous, and reading a file is not.
+ */
+export function toPdfBytes(entry: Entry, images: ImageBook = NO_IMAGES): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const title = deriveTitle(entry)
 
@@ -337,7 +455,7 @@ export function toPdfBytes(entry: Entry): Uint8Array {
   )
   layout.rule()
 
-  renderTokens(layout, lexBody(stripLeadingTitle(entry.body, title)))
+  renderTokens(layout, lexBody(stripLeadingTitle(entry.body, title)), images)
 
   // Page numbers, added once the total is known.
   const pages = doc.getNumberOfPages()

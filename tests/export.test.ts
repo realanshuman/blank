@@ -1,6 +1,6 @@
 import { inflateRawSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import { exportFilename, toCsv, toDocxBlob, toJson, toPlainText } from '../src/export'
+import { exportFilename, renderExport, toCsv, toDocxBlob, toJson, toPlainText } from '../src/export'
 import type { Entry } from '../src/model/entry'
 
 function entry(overrides: Partial<Entry> = {}): Entry {
@@ -40,6 +40,21 @@ describe('plain text export', () => {
     expect(toPlainText('Just a sentence.')).toBe('Just a sentence.')
   })
 
+  it('names an image instead of leaving a hole where it was', () => {
+    // A pasted image has no alt, so the old rule (keep the alt, drop the URL)
+    // turned the line into nothing at all. Plain text cannot show a picture,
+    // but it can say there is one and which file it is.
+    expect(toPlainText('Before.\n\n![](attachments/x-1.png)\n\nAfter.')).toBe(
+      'Before.\n\n[image: attachments/x-1.png]\n\nAfter.',
+    )
+  })
+
+  it('keeps alt text the writer typed alongside the file', () => {
+    expect(toPlainText('A ![a sunset](attachments/x-1.png) here.')).toBe(
+      'A [image: a sunset (attachments/x-1.png)] here.',
+    )
+  })
+
   it('keeps a task list marker, which is already the plainest form there is', () => {
     // Nothing to draw and no font to rely on, so the source marker stands. It
     // is pinned here because the obvious tidy-up, folding it into the bullet
@@ -54,9 +69,7 @@ describe('plain text export', () => {
  * is: reading a single known entry does not justify a dependency, and docx only
  * ships jszip as its own private detail.
  */
-async function docxXml(blob: Blob | Promise<Blob>): Promise<string> {
-  const buffer = Buffer.from(await (await blob).arrayBuffer())
-  const name = 'word/document.xml'
+function zipMemberBytes(buffer: Buffer, name: string): Buffer {
   let at = 0
   for (;;) {
     at = buffer.indexOf('PK\x03\x04', at, 'latin1')
@@ -66,12 +79,18 @@ async function docxXml(blob: Blob | Promise<Blob>): Promise<string> {
     const start = at + 30 + nameLength + extraLength
     if (buffer.subarray(at + 30, at + 30 + nameLength).toString() === name) {
       const body = buffer.subarray(start, start + buffer.readUInt32LE(at + 18))
-      return buffer.readUInt16LE(at + 8) === 8
-        ? inflateRawSync(body).toString('utf8')
-        : body.toString('utf8')
+      return buffer.readUInt16LE(at + 8) === 8 ? inflateRawSync(body) : Buffer.from(body)
     }
     at += 4
   }
+}
+
+function zipMember(buffer: Buffer, name: string): string {
+  return zipMemberBytes(buffer, name).toString('utf8')
+}
+
+async function docxXml(blob: Blob | Promise<Blob>): Promise<string> {
+  return zipMember(Buffer.from(await (await blob).arrayBuffer()), 'word/document.xml')
 }
 
 describe('DOCX export', () => {
@@ -127,6 +146,95 @@ describe('DOCX export', () => {
   })
 })
 
+describe('images in a DOCX', () => {
+  const href = 'attachments/2026-08-29-101500-abc123-1.png'
+
+  /** A real 4x3 PNG, and a real 1600x4 one, as bytes rather than as a mock. */
+  const TINY_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAADklEQVR42mNoQAIMODkAXzYSAZMbUt0AAAAASUVORK5CYII='
+  const WIDE_PNG = 'iVBORw0KGgoAAAANSUhEUgAABkAAAAAECAAAAADzfqw7AAAAJ0lEQVR42u3VIQEAAAzDsEmbf1XzcHSQSChpCgAHkQAAAwHAQAD4bS3jQFuOG9LlAAAAAElFTkSuQmCC'
+  /** A RIFF container: a real image file, in a format Word cannot be handed. */
+  const WEBP = new Uint8Array([
+    0x52, 0x49, 0x46, 0x46, 0x1a, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20,
+  ])
+
+  const bytesOf = (base64: string) => new Uint8Array(Buffer.from(base64, 'base64'))
+
+  /** The whole seam: the caller's resolver, through the export, into the zip. */
+  async function docxWith(body: string, files: Record<string, Uint8Array> = {}): Promise<Buffer> {
+    const result = await renderExport([entry({ body })], 'docx', async (asked) => files[asked] ?? null)
+    return Buffer.from(result.data as Uint8Array)
+  }
+
+  /** The EMU size of each drawn image. There are 9525 of them to the pixel. */
+  const extents = (xml: string) =>
+    [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((match) => ({
+      cx: Number(match[1]),
+      cy: Number(match[2]),
+    }))
+
+  it('embeds a pasted image', async () => {
+    // The bug: an image token fell to the default branch of inlineRuns, which
+    // pushed a run of its alt text, and a pasted image has no alt, so Word got
+    // an empty run where the picture should have been.
+    const docx = await docxWith(`Notes\n\n![](${href})`, { [href]: bytesOf(TINY_PNG) })
+    const xml = zipMember(docx, 'word/document.xml')
+    expect(xml).toContain('<w:drawing')
+    expect(extents(xml)).toEqual([{ cx: 4 * 9525, cy: 3 * 9525 }])
+
+    // The file itself has to be in the container, not just referenced from it.
+    const rels = zipMember(docx, 'word/_rels/document.xml.rels')
+    const target = /Target="(media\/[^"]+\.png)"/.exec(rels)?.[1]
+    expect(target).toBeDefined()
+    expect(zipMemberBytes(docx, `word/${target}`).equals(Buffer.from(TINY_PNG, 'base64'))).toBe(
+      true,
+    )
+  })
+
+  it('brings a wide image down to the text column and keeps its shape', async () => {
+    const xml = zipMember(
+      await docxWith(`Notes\n\n![](${href})`, { [href]: bytesOf(WIDE_PNG) }),
+      'word/document.xml',
+    )
+    const drawn = extents(xml)[0]
+    expect(drawn).toBeDefined()
+    // A4 less docx's own one inch margins: 9026 twips, 635 EMU to the twip.
+    expect(drawn!.cx).toBeGreaterThan(9026 * 635 * 0.99)
+    expect(drawn!.cx).toBeLessThanOrEqual(9026 * 635)
+    expect(drawn!.cx / drawn!.cy).toBeCloseTo(1600 / 4, 0)
+  })
+
+  it('keeps the words on either side of an inline image', async () => {
+    const xml = zipMember(
+      await docxWith(`Notes\n\nBefore ![](${href}) after.`, { [href]: bytesOf(TINY_PNG) }),
+      'word/document.xml',
+    )
+    expect(xml).toContain('Before')
+    expect(xml).toContain('after.')
+    expect(xml).toContain('<w:drawing')
+  })
+
+  it('says in the document that an image is missing rather than dropping it', async () => {
+    const xml = zipMember(await docxWith(`Notes\n\n![](${href})`), 'word/document.xml')
+    expect(xml).toContain(`[missing image: ${href}]`)
+    expect(xml).not.toContain('<w:drawing')
+  })
+
+  it('says so for bytes Word cannot be handed', async () => {
+    const webp = 'attachments/2026-08-29-101500-abc123-2.webp'
+    const xml = zipMember(await docxWith(`Notes\n\n![](${webp})`, { [webp]: WEBP }), 'word/document.xml')
+    expect(xml).toContain(`[unsupported image: ${webp}]`)
+    expect(xml).not.toContain('<w:drawing')
+  })
+
+  it('carries alt text the writer typed into the file', async () => {
+    const xml = zipMember(
+      await docxWith(`Notes\n\n![the harbour at dawn](${href})`, { [href]: bytesOf(TINY_PNG) }),
+      'word/document.xml',
+    )
+    expect(xml).toMatch(/<wp:docPr[^>]*descr="the harbour at dawn"/)
+  })
+})
+
 describe('CSV export', () => {
   it('emits a header row plus one row per entry', () => {
     const csv = toCsv([entry(), entry({ id: 'second' })])
@@ -171,6 +279,29 @@ describe('JSON export', () => {
 
   it('is valid JSON for an empty set', () => {
     expect(() => JSON.parse(toJson([]))).not.toThrow()
+  })
+})
+
+describe('the archive formats and an image', () => {
+  const body = 'Notes\n\n![](attachments/2026-08-29-101500-abc123-1.png)'
+
+  it('leaves the reference exactly as the writer’s file has it', async () => {
+    // md, csv and json are the formats that exist to be read back in, by this
+    // app or another one. Rewriting the link there would break the round trip,
+    // and the file it points at is sitting next to the entry either way.
+    expect((await renderExport([entry({ body })], 'md')).data).toBe(body)
+    expect(toCsv([entry({ body })])).toContain('![](attachments/2026-08-29-101500-abc123-1.png)')
+    const parsed = JSON.parse(toJson([entry({ body })])) as {
+      entries: Array<{ body: string; words: number }>
+    }
+    expect(parsed.entries[0]?.body).toBe(body)
+  })
+
+  it('does not count the image as a word in the metadata', () => {
+    const parsed = JSON.parse(toJson([entry({ body })])) as {
+      entries: Array<{ words: number }>
+    }
+    expect(parsed.entries[0]?.words).toBe(1)
   })
 })
 

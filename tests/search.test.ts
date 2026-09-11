@@ -90,6 +90,55 @@ describe('searching', () => {
   })
 })
 
+describe('images are not searchable text', () => {
+  const href = 'attachments/2026-09-10-142233-a1b2-1.png'
+  const withImage = entry('img', `Morning pages\n\n![](${href})\n\nThe light was good.`)
+
+  it('does not match the folder name or the file extension', () => {
+    // The writer never typed either of these; the paste did.
+    expect(searchEntries([withImage], 'attachments')).toHaveLength(0)
+    expect(searchEntries([withImage], 'png')).toHaveLength(0)
+    expect(searchEntries([withImage], '142233')).toHaveLength(0)
+  })
+
+  it('hides the path from a regex query too', () => {
+    expect(searchEntries([withImage], '/attachments\\/\\S+\\.png/')).toHaveLength(0)
+  })
+
+  it('still finds alt text someone wrote', () => {
+    const described = entry('alt', `Morning pages\n\n![the harbour at dawn](${href})`)
+    expect(searchEntries([described], 'harbour')).toHaveLength(1)
+  })
+
+  it('never centres a snippet on a file path', () => {
+    const hit = searchEntries([withImage], 'light')[0]
+    expect(hit).toBeDefined()
+    expect(hit!.snippet).not.toContain('attachments/')
+    expect(hit!.snippet).toContain('The light was good.')
+  })
+
+  it('keeps the snippet window in step with the text it searched', () => {
+    // The trap: search the stripped text but slice the raw body, and every
+    // offset past an image is short by the length of the path, so the window
+    // and the highlights land on the wrong characters. Four pasted shots put
+    // more drift between the two than the whole snippet is wide.
+    const shots = Array.from(
+      { length: 4 },
+      (_, index) => `![](attachments/2026-09-10-142233-a1b2-${index + 1}.png)`,
+    ).join('\n\n')
+    const long = entry(
+      'long',
+      `${'filler words here. '.repeat(20)}\n\n${shots}\n\n${'more filler. '.repeat(20)}needle at the end`,
+    )
+    const hit = searchEntries([long], 'needle')[0]
+    expect(hit).toBeDefined()
+    expect(hit!.snippet).toContain('needle')
+    for (const [start, end] of hit!.ranges) {
+      expect(hit!.snippet.slice(start, end).toLowerCase()).toBe('needle')
+    }
+  })
+})
+
 describe('snippets', () => {
   it('highlights every occurrence in the snippet', () => {
     const hits = searchEntries([corpus[0] as Entry], 'pricing')
