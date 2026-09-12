@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { countWords, createEntry, type Entry, type EntryMeta } from '../model/entry'
 import { searchEntries, type SearchHit } from '../model/search'
 import { EntryRepository } from '../storage/repository'
+import { syncWindowAppearance } from '../shell/appearance'
 import { assetMimeType } from '../storage/assets'
 import { createStorage } from '../storage'
 import type { SnapshotMeta } from '../storage/types'
@@ -115,6 +116,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     const settings = loadSettings()
     applySettingsToDocument(settings)
+    void syncWindowAppearance(settings.theme)
 
     const entries = repository.list()
     set({
@@ -303,6 +305,7 @@ export const useStore = create<AppState>((set, get) => ({
     const settings = { ...get().settings, ...patch }
     saveSettings(settings)
     applySettingsToDocument(settings)
+    void syncWindowAppearance(settings.theme)
     set({ settings })
   },
 
