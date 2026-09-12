@@ -769,53 +769,23 @@ button {
 }
 
 /* ---------------------------------------------------------------------------
-   Vibrancy, on the Mac desktop app only
+   The Mac desktop app is painted from the theme, not from the desktop
 
-   The window asks macOS for a sidebar effect, which paints a blurred sample of
-   whatever is behind the window underneath the whole webview. It only shows
-   through where the page lets it, and the page lets it through in exactly one
-   place: the history panel, which is chrome, which is what vibrancy is for.
+   It used to ask macOS for a sidebar vibrancy effect and let it through under
+   the history panel, which was 62% opaque over it. That made the panel's
+   colour a blend of the theme and a native material, and the material takes
+   its appearance from macOS rather than from the app. Choose Black while
+   macOS is in Light mode and 62% of #0a0a0a over a light sheet is mid grey,
+   sitting next to a pure black canvas. Reported twice from the real app, in
+   two different themes.
 
-   Deliberately not the canvas. The writing surface has to be an opaque sheet
-   of one colour or the text sits on a moving photograph of the desktop, which
-   is the opposite of what this app is.
-
-   The failure mode is contained by design. If the effect is refused, or the
-   machine is old, the panel is simply a translucent panel over the desktop
-   rather than a blurred one: readable either way, because nothing behind it
-   belongs to Blank.
+   Telling the window which appearance to use did not fix it, so the panel no
+   longer depends on a surface this app does not control. It is painted from
+   --blank-panel like every other platform, which makes it correct in all four
+   themes by construction, whatever macOS is doing and whatever is behind the
+   window. The window appearance is still kept in step, because it is what
+   native scrollbars and the title bar read.
    --------------------------------------------------------------------------- */
-
-:root[data-shell='macos'] body {
-  background: transparent;
-}
-
-/* The writing keeps its own opaque ground, so only the panel is see-through. */
-:root[data-shell='macos'] .app__main {
-  background: var(--blank-bg);
-}
-
-:root[data-shell='macos'] .sidebar {
-  background: color-mix(in srgb, var(--blank-panel) 62%, transparent);
-  /* Safari draws its own blur behind the panel as well, so the effect holds up
-     while the window is inactive and macOS damps the native one. */
-  backdrop-filter: saturate(180%) blur(20px);
-}
-
-/*
- * Some people find translucency unreadable, and macOS has a switch for saying
- * so. Honour it: the panel goes back to solid and the native effect is left
- * painting behind an opaque surface, which costs nothing.
- */
-@media (prefers-reduced-transparency: reduce) {
-  :root[data-shell='macos'] body {
-    background: var(--blank-bg);
-  }
-  :root[data-shell='macos'] .sidebar {
-    background: var(--blank-panel);
-    backdrop-filter: none;
-  }
-}
 
 /* Some people get motion sick from sliding panels; honour the OS switch. */
 @media (prefers-reduced-motion: reduce) {
